@@ -101,7 +101,7 @@
 
 如果您对本隐私政策有任何疑问或建议，请通过以下方式联系我们：
 
-- **GitHub Issues**：[项目 Issues 页面](https://github.com/qiin2333/moonlight-android/issues)
+- **GitHub Issues**：[项目 Issues 页面](https://github.com/chenx-dust/moonlight-vminus/issues)
 - **邮箱**：通过 GitHub 项目页面联系
 
 ## 相关链接

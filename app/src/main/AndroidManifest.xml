@@ -69,13 +69,13 @@
         android:isGame="true"
         android:banner="@drawable/atv_banner"
         android:appCategory="game"
-        android:icon="@drawable/saba"
+        android:icon="@mipmap/ic_launcher"
         android:installLocation="auto"
         android:gwpAsanMode="always"
         android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="false"
         android:theme="@style/AppTheme"
-        tools:targetApi="vanillaIceCream">
+        tools:targetApi="36">
 
         <provider
             android:name=".PosterContentProvider"

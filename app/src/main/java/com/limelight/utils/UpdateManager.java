@@ -38,8 +38,8 @@ import java.util.regex.Pattern;
 
 public class UpdateManager {
 	private static final String TAG = "UpdateManager";
-	private static final String GITHUB_API_URL = "https://api.github.com/repos/qiin2333/moonlight-android/releases/latest";
-	private static final String GITHUB_RELEASE_PAGE = "https://github.com/qiin2333/moonlight-android/releases/latest";
+	private static final String GITHUB_API_URL = "https://api.github.com/repos/chenx-dust/moonlight-vminus/releases/latest";
+	private static final String GITHUB_RELEASE_PAGE = "https://github.com/chenx-dust/moonlight-vminus/releases/latest";
 	private static final long UPDATE_CHECK_INTERVAL = 4 * 60 * 60 * 1000;
 
 	// 代理发现地址

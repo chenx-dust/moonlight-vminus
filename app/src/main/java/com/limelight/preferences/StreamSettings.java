@@ -59,11 +59,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.*;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
-import jp.wasabeef.glide.transformations.BlurTransformation;
-import jp.wasabeef.glide.transformations.ColorFilterTransformation;
-
 public class StreamSettings extends Activity {
 
 
@@ -110,9 +105,6 @@ public class StreamSettings extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
 
         UiHelper.notifyNewRootView(this);
-
-        // 加载背景图片
-        loadBackgroundImage();
     }
 
     @Override
@@ -1095,16 +1087,5 @@ public class StreamSettings extends Activity {
             }
 
         }
-
-    }
-
-    private void loadBackgroundImage() {
-        ImageView imageView = findViewById(R.id.settingsBackgroundImage);
-
-        runOnUiThread(() -> Glide.with(this)
-            .load("https://raw.gitmirror.com/qiin2333/qiin.github.io/assets/img/moonlight-bg2.webp")
-            .apply(RequestOptions.bitmapTransform(new BlurTransformation(2, 3)))
-            .transform(new ColorFilterTransformation(Color.argb(120, 0, 0, 0)))
-            .into(imageView));
     }
 }
