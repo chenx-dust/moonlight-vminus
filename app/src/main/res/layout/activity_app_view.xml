@@ -7,13 +7,6 @@
     android:clipToPadding="false"
     tools:context=".AppView" >
 
-    <ImageView
-        android:id="@+id/appBackgroundImage"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:alpha="0.33" />
-
     <FrameLayout
         android:id="@+id/appFragmentContainer"
         android:layout_width="fill_parent"
@@ -24,7 +17,7 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true" />
-    
+
     <!-- 选中框动画View -->
     <View
         android:id="@+id/selectionIndicator"
@@ -35,7 +28,7 @@
         android:elevation="8dp"
         android:clipChildren="false"
         android:clipToPadding="false"/>
-    
+
     <TextView
         android:id="@+id/appListText"
         android:layout_width="match_parent"
@@ -47,7 +40,6 @@
         android:layout_marginRight="20dp"
         android:layout_marginEnd="20dp"
         android:gravity="end"
-        android:paddingTop="@dimen/activity_safearea_top"
         android:paddingBottom="15dp"
         android:preferKeepClear="true"
         android:textSize="24sp"

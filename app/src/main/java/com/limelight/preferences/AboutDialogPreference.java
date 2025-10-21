@@ -19,8 +19,8 @@ import com.limelight.R;
 
 public class AboutDialogPreference extends Preference {
     
-    private static final String GITHUB_REPO_URL = "https://github.com/qiin2333/moonlight-android";
-    private static final String GITHUB_STAR_URL = "https://github.com/qiin2333/moonlight-android/stargazers";
+    private static final String GITHUB_REPO_URL = "https://github.com/chenx-dust/moonlight-vminus";
+    private static final String GITHUB_STAR_URL = "https://github.com/chenx-dust/moonlight-vminus/stargazers";
 
     public AboutDialogPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
@@ -106,7 +106,7 @@ public class AboutDialogPreference extends Preference {
                     .getPackageInfo(context.getPackageName(), 0);
             return packageInfo.applicationInfo.loadLabel(context.getPackageManager()).toString();
         } catch (PackageManager.NameNotFoundException e) {
-            return "Moonlight V+";
+            return "Moonlight V-";
         }
     }
     

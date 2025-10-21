@@ -6,8 +6,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.UnknownHostException;
 
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.RequestOptions;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.crypto.AndroidCryptoProvider;
 import com.limelight.computers.ComputerManagerService;
@@ -32,7 +30,6 @@ import com.limelight.utils.Iperf3Tester;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
-import com.limelight.utils.AnalyticsManager;
 import com.limelight.utils.UpdateManager;
 import com.limelight.utils.AppCacheManager;
 import com.limelight.utils.CacheHelper;
@@ -42,8 +39,6 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.StringReader;
 import java.util.List;
-
-import com.bumptech.glide.Glide;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -85,31 +80,17 @@ import org.json.JSONObject;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import jp.wasabeef.glide.transformations.BlurTransformation;
-import jp.wasabeef.glide.transformations.ColorFilterTransformation;
-
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
-import android.hardware.SensorManager;
 
-import com.squareup.seismic.ShakeDetector;
-
-public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeDetector.Listener {
+public class PcView extends Activity implements AdapterFragmentCallbacks {
     private RelativeLayout noPcFoundLayout;
     private PcGridAdapter pcGridAdapter;
     private ShortcutHelper shortcutHelper;
     private int selectedPosition = -1;
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private boolean freezeUpdates, runningPolling, inForeground, completeOnCreateCalled;
-    
-    private ShakeDetector shakeDetector;
-    private long lastShakeTime = 0;
-    private static final long SHAKE_DEBOUNCE_INTERVAL = 3000; // 3 seconds debounce
-    private static final int MAX_DAILY_REFRESH = 7; // Maximum 7 refreshes per day
-    private static final String REFRESH_PREF_NAME = "RefreshLimit";
-    private static final String REFRESH_COUNT_KEY = "refresh_count";
-    private static final String REFRESH_DATE_KEY = "refresh_date";
-    
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder binder) {
             final ComputerManagerService.ComputerManagerBinder localBinder =
@@ -169,7 +150,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
     public String clientName;
     private LruCache<String, Bitmap> bitmapLruCache;
-    private AnalyticsManager analyticsManager;
 
     // 添加场景配置相关常量
     private static final String SCENE_PREF_NAME = "SceneConfigs";
@@ -186,56 +166,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         }
 
         clientName = Settings.Global.getString(this.getContentResolver(), "device_name");
-
-        ImageView imageView = findViewById(R.id.pcBackgroundImage);
-        String imageUrl = getBackgroundImageUrl();
-
-        // set background image
-        new Thread(() -> {
-            try {
-                final Bitmap bitmap = Glide.with(PcView.this)
-                        .asBitmap()
-                        .load(imageUrl)
-                        .skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE)
-                        .submit()
-                        .get();
-                if (bitmap != null) {
-                    bitmapLruCache.put(imageUrl, bitmap);
-                    runOnUiThread(() -> Glide.with(PcView.this)
-                            .load(bitmap)
-                            .apply(RequestOptions.bitmapTransform(new BlurTransformation(2, 3)))
-                            .transform(new ColorFilterTransformation(Color.argb(120, 0, 0, 0)))
-                            .into(imageView));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-
-        // 设置长按监听
-        imageView.setOnLongClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11及以上需要检查MANAGE_EXTERNAL_STORAGE权限
-                if (Environment.isExternalStorageManager()) {
-                    saveImage();
-                } else {
-                    // 请求权限
-                    Toast.makeText(this, "需要存储权限才能保存图片，请在设置中授予权限", Toast.LENGTH_LONG).show();
-                    try {
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                        intent.setData(Uri.parse("package:" + getPackageName()));
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                        startActivity(intent);
-                    }
-                }
-            } else {
-                // Android 10及以下直接保存
-                saveImage();
-            }
-            return true;
-        });
 
         if (getWindow().getDecorView().getRootView() != null) {
             initSceneButtons();
@@ -256,8 +186,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             startActivity(i);
         });
         helpButton.setOnClickListener(v -> {
-//                HelpLauncher.launchSetupGuide(PcView.this);
-            joinQQGroup("LlbLDIF_YolaM4HZyLx0xAXXo04ZmoBM");
+            HelpLauncher.launchSetupGuide(PcView.this);
         });
         restoreSessionButton.setOnClickListener(v -> restoreLastSession());
 
@@ -280,105 +209,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             noPcFoundLayout.setVisibility(View.INVISIBLE);
         }
         pcGridAdapter.notifyDataSetChanged();
-    }
-
-    private @NonNull String getBackgroundImageUrl() {
-        // 获取用户自定义的图片API地址
-        String customUrl = PreferenceManager.getDefaultSharedPreferences(this)
-            .getString("background_image_url", null);
-            
-        // 如果没有自定义地址，使用默认地址
-        if (customUrl == null || customUrl.isEmpty()) {
-            int deviceRotation = this.getWindowManager().getDefaultDisplay().getRotation();
-            return deviceRotation == Configuration.ORIENTATION_PORTRAIT ? 
-                "https://img-api.pipw.top" : 
-                "https://img-api.pipw.top/?phone=true";
-        }
-        
-        // 使用自定义地址
-        return customUrl;
-    }
-
-    private void saveImage() {
-        // 先尝试从缓存获取
-        Bitmap bitmap = bitmapLruCache.get(getBackgroundImageUrl());
-        
-        if (bitmap == null) {
-            // 如果缓存中没有，尝试从ImageView获取
-            ImageView imageView = findViewById(R.id.pcBackgroundImage);
-            if (imageView != null && imageView.getDrawable() != null) {
-                Toast.makeText(this, "正在重新下载图片，请稍候...", Toast.LENGTH_SHORT).show();
-                
-                // 在后台线程重新下载原图
-                new Thread(() -> {
-                    try {
-                        String imageUrl = getBackgroundImageUrl();
-                        Bitmap downloadedBitmap = Glide.with(PcView.this)
-                                .asBitmap()
-                                .load(imageUrl)
-                                .submit()
-                                .get();
-                        
-                        if (downloadedBitmap != null) {
-                            // 重新放入缓存
-                            bitmapLruCache.put(imageUrl, downloadedBitmap);
-                            // 保存图片
-                            runOnUiThread(() -> saveBitmapToFile(downloadedBitmap));
-                        } else {
-                            runOnUiThread(() -> Toast.makeText(PcView.this, "图片下载失败，请重试", Toast.LENGTH_SHORT).show());
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        runOnUiThread(() -> Toast.makeText(PcView.this, "图片下载失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                    }
-                }).start();
-                return;
-            } else {
-                Toast.makeText(this, "图片未加载，请稍后再试", Toast.LENGTH_SHORT).show();
-                return;
-            }
-        }
-        
-        // 如果缓存中有图片，直接保存
-        saveBitmapToFile(bitmap);
-    }
-    
-    private void saveBitmapToFile(Bitmap bitmap) {
-        if (bitmap == null) {
-            Toast.makeText(this, "图片无效", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // 图片保存路径，这里保存到外部存储的Pictures目录下，可根据需求调整
-        String root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString();
-        File myDir = new File(root + "/setu");
-        myDir.mkdirs();
-
-        // 文件名设置
-        String fileName = "pipw-" + System.currentTimeMillis() + ".png";
-        File file = new File(myDir, fileName);
-
-        try {
-            FileOutputStream outputStream = new FileOutputStream(file);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-            outputStream.flush();
-            outputStream.close();
-            refreshSystemPic(PcView.this, file);
-            Toast.makeText(this, "涩图成功保存到了系统目录(Picture/setu)", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "涩图保存失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-        // 不再清空所有缓存，只移除当前图片（可选）
-        // bitmapLruCache.remove(getBackgroundImageUrl());
-    }
-
-    // 刷新图库的方法
-    private void refreshSystemPic(Context context, File file) {
-        Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        Uri contentUri = Uri.fromFile(file);
-        intent.setData(contentUri);
-        context.sendBroadcast(intent);
     }
 
     @Override
@@ -547,10 +377,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
         UiHelper.setLocale(this);
 
-        // 初始化统计分析管理器
-        analyticsManager = AnalyticsManager.getInstance(this);
-        analyticsManager.logAppLaunch();
-
         // 检查应用更新
         UpdateManager.checkForUpdatesOnStartup(this);
 
@@ -559,10 +385,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
                 Service.BIND_AUTO_CREATE);
 
         pcGridAdapter = new PcGridAdapter(this, PreferenceConfiguration.readPreferences(this));
-        
-        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        shakeDetector = new ShakeDetector(this);
-        shakeDetector.setSensitivity(ShakeDetector.SENSITIVITY_MEDIUM); // 设置中等灵敏度
 
         initializeViews();
     }
@@ -611,11 +433,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         if (managerBinder != null) {
             unbindService(serviceConnection);
         }
-        
-        // 清理统计分析资源
-        if (analyticsManager != null) {
-            analyticsManager.cleanup();
-        }
     }
 
     @Override
@@ -627,23 +444,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
         inForeground = true;
         startComputerUpdates();
-        
-        // 开始记录使用时长
-        if (analyticsManager != null) {
-            analyticsManager.startUsageTracking();
-        }
-        
-        if (shakeDetector != null) {
-            try {
-                shakeDetector.start((SensorManager) getSystemService(SENSOR_SERVICE));
-            } catch (SecurityException e) {
-                // Android 12+ 需要 HIGH_SAMPLING_RATE_SENSORS 权限
-                LimeLog.warning("shakeDetector start failed: " + e.getMessage());
-                // 不显示错误，静默失败即可
-            } catch (Exception e) {
-                LimeLog.warning("shakeDetector start failed: " + e.getMessage());
-            }
-        }
     }
 
     @Override
@@ -652,19 +452,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
         inForeground = false;
         stopComputerUpdates(false);
-        
-        // 停止记录使用时长
-        if (analyticsManager != null) {
-            analyticsManager.stopUsageTracking();
-        }
-        
-        if (shakeDetector != null) {
-            try {
-                shakeDetector.stop();
-            } catch (Exception e) {
-                LimeLog.warning("shakeDetector stop failed: " + e.getMessage());
-            }
-        }
     }
 
     @Override
@@ -1270,173 +1057,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         @Override
         public String toString() {
             return details.name;
-        }
-    }
-
-    @Override
-    public void hearShake() {
-        long currentTime = System.currentTimeMillis();
-        
-        // Debounce: Check if enough time has passed since last shake
-        if (currentTime - lastShakeTime < SHAKE_DEBOUNCE_INTERVAL) {
-            long remainingSeconds = (SHAKE_DEBOUNCE_INTERVAL - (currentTime - lastShakeTime)) / 1000;
-            runOnUiThread(() -> 
-                Toast.makeText(PcView.this, "Please wait " + remainingSeconds + "s", Toast.LENGTH_SHORT).show()
-            );
-            return;
-        }
-        
-        // Check daily limit
-        if (!canRefreshToday()) {
-            runOnUiThread(() -> 
-                Toast.makeText(PcView.this, "Daily limit reached (5/5). Try again tomorrow!", Toast.LENGTH_LONG).show()
-            );
-            return;
-        }
-        
-        lastShakeTime = currentTime;
-        
-        // Increment counter and get remaining
-        incrementRefreshCount();
-        int remaining = getRemainingRefreshCount();
-        
-        runOnUiThread(() -> {
-            String message = "Refreshing... (" + remaining + " left today)";
-            Toast.makeText(PcView.this, message, Toast.LENGTH_SHORT).show();
-            refreshBackgroundImage();
-        });
-    }
-    
-    /**
-     * Get today's date string (YYYY-MM-DD)
-     */
-    private String getTodayDateString() {
-        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                .format(new java.util.Date());
-    }
-    
-    /**
-     * Check if user can refresh (within daily limit)
-     * @return true if can refresh, false if limit reached
-     */
-    private boolean canRefreshToday() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = prefs.getInt(REFRESH_COUNT_KEY, 0);
-        
-        // New day, reset counter
-        if (!today.equals(savedDate)) {
-            prefs.edit()
-                .putString(REFRESH_DATE_KEY, today)
-                .putInt(REFRESH_COUNT_KEY, 0)
-                .apply();
-            return true;
-        }
-        
-        // Check if within limit
-        return count < MAX_DAILY_REFRESH;
-    }
-    
-    /**
-     * Get remaining refresh count for today
-     */
-    private int getRemainingRefreshCount() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = prefs.getInt(REFRESH_COUNT_KEY, 0);
-        
-        // New day
-        if (!today.equals(savedDate)) {
-            return MAX_DAILY_REFRESH;
-        }
-        
-        return Math.max(0, MAX_DAILY_REFRESH - count);
-    }
-    
-    /**
-     * Increment refresh count
-     */
-    private void incrementRefreshCount() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = prefs.getInt(REFRESH_COUNT_KEY, 0);
-        
-        // Ensure date is today
-        if (!today.equals(savedDate)) {
-            count = 0;
-        }
-        
-        prefs.edit()
-            .putString(REFRESH_DATE_KEY, today)
-            .putInt(REFRESH_COUNT_KEY, count + 1)
-            .apply();
-    }
-    
-    /**
-     * Refresh background image
-     */
-    private void refreshBackgroundImage() {
-        ImageView imageView = findViewById(R.id.pcBackgroundImage);
-        if (imageView == null) return;
-        
-        String imageUrl = getBackgroundImageUrl();
-        
-        bitmapLruCache.remove(imageUrl);
-        
-        // Reload the image in a background thread
-        new Thread(() -> {
-            try {
-                final Bitmap bitmap = Glide.with(PcView.this)
-                        .asBitmap()
-                        .load(imageUrl)
-                        .skipMemoryCache(true)
-                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                        .submit()
-                        .get();
-                        
-                if (bitmap != null) {
-                    bitmapLruCache.put(imageUrl, bitmap);
-                    runOnUiThread(() -> {
-                        Glide.with(PcView.this)
-                                .load(bitmap)
-                                .apply(RequestOptions.bitmapTransform(new BlurTransformation(2, 3)))
-                                .transform(new ColorFilterTransformation(Color.argb(120, 0, 0, 0)))
-                                .into(imageView);
-                        int remaining = getRemainingRefreshCount();
-                        String message = "Background refreshed! (" + remaining + " left today)";
-                        Toast.makeText(PcView.this, message, Toast.LENGTH_SHORT).show();
-                    });
-                } else {
-                    runOnUiThread(() -> Toast.makeText(PcView.this, "Refresh failed, please retry", Toast.LENGTH_SHORT).show());
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(PcView.this, "Refresh failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-            }
-        }).start();
-    }
-
-    /****************
-     *
-     * 发起添加群流程。群号：第四串流基地(460965258) 的 key 为： JfhuyTDZFsHrOXaWEEX6YGH9FHh3xGzR
-     * 调用 joinQQGroup(JfhuyTDZFsHrOXaWEEX6YGH9FHh3xGzR) 即可发起手Q客户端申请加群 第四串流基地(460965258)
-     *
-     * @param key 由官网生成的key
-     * @return 返回true表示呼起手Q成功，返回false表示呼起失败
-     ******************/
-    public boolean joinQQGroup(String key) {
-        Intent intent = new Intent();
-        intent.setData(Uri.parse("mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3D" + key));
-        // 此Flag可根据具体产品需要自定义，如设置，则在加群界面按返回，返回手Q主界面，不设置，按返回会返回到呼起产品界面    //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            startActivity(intent);
-            return true;
-        } catch (Exception e) {
-            // 未安装手Q或安装的版本不支持
-            return false;
         }
     }
 }

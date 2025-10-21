@@ -318,9 +318,7 @@
     <string name="dialog_button_save">GUARDAR</string>
     <string name="dialog_hint_key_codes">Códigos de tecla (ej. 0x11, 0x10, 0x1B)</string>
     <string name="dialog_hint_key_name">Nombre de tecla (ej. Ctrl+Shift+Esc)</string>
-    <string name="dialog_message_background_image_api">Por favor ingresa la API de imagen completa</string>
     <string name="dialog_title_add_custom_key">Agregar botones personalizados</string>
-    <string name="dialog_title_background_image_api">API de Imagen de Fondo</string>
     <string name="dialog_title_enhanced_touch_zone_divider">Menos del 50% significa dividir desde un punto a la izquierda, más del 50% significa derecha</string>
     <string name="dialog_title_fixed_x_velocity">Establecer velocidad X (horizontal) fija en píxeles. Establecer 0 para deshabilitar velocidad x fija.</string>
     <string name="dialog_title_pointer_velocity_factor">Establecer factor de velocidad del puntero para la zona de toque mejorada. Establecer 100% para deshabilitar</string>
@@ -409,7 +407,6 @@
     <string name="suffix_seekbar_mic_bitrate_kbps">kbps</string>
     <string name="summary_about_author">Crown\'s Bilibili: XiguaHub, por favor síguelos. GitHub: https://github.com/WACrown/moonlight-android</string>
     <string name="summary_about_mode">Ver información de la aplicación y detalles del proyecto</string>
-    <string name="summary_background_image_api">Ingresa una API de imagen de fondo personalizada, o una URL de imagen única. Deja vacío para ver imágenes aleatorias</string>
     <string name="summary_check_for_updates">Verificar si hay una nueva versión disponible</string>
     <string name="summary_checkbox_enable_enhanced_touch">	</string>
     <string name="summary_checkbox_enable_esc_menu">Cuando está habilitado, presionar doble ESC abre el menú de retorno de transmisión, una sola presión de ESC se pasa al host</string>
@@ -460,7 +457,6 @@
     <string name="tip_wallpaper_change">💡 Consejo: La opción de API de fondo de pantalla puede establecer la API para fuentes de fondo de pantalla aleatorias, o una dirección de imagen única</string>
     <string name="title_about_author">Esto es V+ X Royal Edition</string>
     <string name="title_about_mode">Acerca de</string>
-    <string name="title_background_image_api">API de Imagen de Fondo</string>
     <string name="title_checkbox_enable_enhanced_touch">Habilitar toque mejorado</string>
     <string name="title_checkbox_enable_esc_menu">Permitir tecla ESC para abrir menú de retorno</string>
     <string name="title_checkbox_enable_keyboard_toggle_in_native_touch">Habilitar alternar teclado en modo de toque multi-punto </string>

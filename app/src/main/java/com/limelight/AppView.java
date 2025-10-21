@@ -19,7 +19,6 @@ import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
 import com.limelight.ui.AdapterRecyclerBridge;
 import com.limelight.ui.SelectionIndicatorAnimator;
-import com.limelight.utils.BackgroundImageManager;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
@@ -53,6 +52,7 @@ import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.CheckBox;
@@ -79,8 +79,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     private boolean inForeground;
     private boolean showHiddenApps;
     private HashSet<Integer> hiddenAppIds = new HashSet<>();
-    private ImageView appBackgroundImage;
-    private BackgroundImageManager backgroundImageManager;
     private int selectedPosition = -1; // 跟踪当前选中的位置
     private String computerName; // 存储计算机名称
 
@@ -89,11 +87,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     private RecyclerView currentRecyclerView;
     private AdapterRecyclerBridge currentAdapterBridge;
     private boolean isFirstFocus = true; // 跟踪是否是第一次获得焦点
-
-    // 防抖相关变量
-    private final Handler backgroundChangeHandler = new Handler(Looper.getMainLooper());
-    private Runnable backgroundChangeRunnable;
-    private static final int BACKGROUND_CHANGE_DELAY = 300; // 300ms防抖延迟
 
     // 上一次设置相关
     private AppSettingsManager appSettingsManager;
@@ -344,10 +337,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
         setContentView(R.layout.activity_app_view);
 
-        // Initialize background image view
-        appBackgroundImage = findViewById(R.id.appBackgroundImage);
-        backgroundImageManager = new BackgroundImageManager(this, appBackgroundImage);
-
         // Initialize app settings manager and UI components
         appSettingsManager = new AppSettingsManager(this);
         lastSettingsInfo = findViewById(R.id.lastSettingsInfo);
@@ -361,11 +350,18 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
         // Initialize selection indicator animator
         View selectionIndicator = findViewById(R.id.selectionIndicator);
+        View baseView = findViewById(android.R.id.content);
+        if (baseView instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup)baseView;
+            View child = group.getChildAt(0);
+            if (child instanceof RelativeLayout)
+                baseView = child;
+        }
         selectionAnimator = new SelectionIndicatorAnimator(
                 selectionIndicator,
                 null, // RecyclerView will be set later
                 null, // Adapter will be set later
-                findViewById(android.R.id.content)
+                baseView
         );
         selectionAnimator.setPositionProvider(() -> selectedPosition);
 
@@ -439,62 +435,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     }
 
     /**
-     * 防抖的背景切换方法
-     *
-     * @param app 要切换背景的应用对象
-     */
-    private void changeBackgroundWithDebounce(AppView.AppObject app) {
-        // 取消之前的延迟任务
-        if (backgroundChangeRunnable != null) {
-            backgroundChangeHandler.removeCallbacks(backgroundChangeRunnable);
-        }
-
-        // 创建新的延迟任务
-        backgroundChangeRunnable = () -> {
-            if (app != null && appGridAdapter != null && appGridAdapter.getLoader() != null) {
-                setAppAsBackground(app);
-            }
-            backgroundChangeRunnable = null;
-        };
-
-        // 延迟执行背景切换
-        backgroundChangeHandler.postDelayed(backgroundChangeRunnable, BACKGROUND_CHANGE_DELAY);
-    }
-
-    /**
-     * 设置指定应用为背景
-     *
-     * @param appObject 应用对象
-     */
-    private void setAppAsBackground(AppView.AppObject appObject) {
-        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
-            return;
-        }
-
-        if (backgroundImageManager != null && appBackgroundImage != null) {
-            CachedAppAssetLoader loader = appGridAdapter.getLoader();
-            CachedAppAssetLoader.LoaderTuple tuple = new CachedAppAssetLoader.LoaderTuple(computer, appObject.app);
-
-            // 尝试从内存缓存获取bitmap
-            ScaledBitmap cachedBitmap = loader.getBitmapFromCache(tuple);
-            if (cachedBitmap != null && cachedBitmap.bitmap != null) {
-                backgroundImageManager.setBackgroundSmoothly(cachedBitmap.bitmap);
-            } else {
-                // 如果缓存中没有，异步加载
-                ImageView tempImageView = new ImageView(this);
-                loader.populateImageView(appObject, tempImageView, null, false, () -> {
-                    if (tempImageView.getDrawable() instanceof BitmapDrawable) {
-                        Bitmap bitmap = ((BitmapDrawable) tempImageView.getDrawable()).getBitmap();
-                        if (bitmap != null) {
-                            backgroundImageManager.setBackgroundSmoothly(bitmap);
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    /**
      * 计算最优的spanCount
      *
      * @param orientation 屏幕方向
@@ -533,9 +473,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         updateTitle(app.app.getAppName());
         appGridAdapter.setSelectedPosition(position);
         appGridAdapter.notifyDataSetChanged();
-
-        // 防抖切换背景
-        changeBackgroundWithDebounce(app);
 
         // 移动选中框动画
         if (selectionAnimator != null) {
@@ -688,17 +625,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         // Cancel any pending image loading operations
         if (appGridAdapter != null) {
             appGridAdapter.cancelQueuedOperations();
-        }
-
-        // Clear background image to prevent memory leaks
-        if (backgroundImageManager != null) {
-            backgroundImageManager.clearBackground();
-        }
-
-        // 清理防抖Handler
-        if (backgroundChangeRunnable != null) {
-            backgroundChangeHandler.removeCallbacks(backgroundChangeRunnable);
-            backgroundChangeRunnable = null;
         }
 
         if (managerBinder != null) {
@@ -1024,9 +950,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             appGridAdapter.rebuildAppList(newAppObjects);
             appGridAdapter.notifyDataSetChanged();
 
-            // Set first app's cover as background if no current background
-            setFirstAppAsBackground(newAppObjects);
-
             // 检查并更新布局（竖屏时根据app数量调整行数）
             if (currentRecyclerView != null) {
                 checkAndUpdateLayout(currentRecyclerView);
@@ -1037,50 +960,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
                 setupCenterAlignment(currentRecyclerView, spanCount);
             }
         });
-    }
-
-    private void setFirstAppAsBackground(List<AppObject> appObjects) {
-        // Check if activity is still valid
-        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
-            return;
-        }
-        
-        // Only set background if we don't have one already and there are apps
-        if (backgroundImageManager.getCurrentBackground() == null && 
-            !appObjects.isEmpty() && 
-            appBackgroundImage != null) {
-            
-            AppObject firstApp = appObjects.get(0);
-            
-            // Don't set background for hidden apps unless we're showing hidden apps
-            if (!firstApp.isHidden || showHiddenApps) {
-                if (appGridAdapter != null && appGridAdapter.getLoader() != null) {
-                    setFirstAppBackgroundImage(firstApp);
-                }
-            }
-        }
-    }
-    
-    private void setFirstAppBackgroundImage(AppObject firstApp) {
-        CachedAppAssetLoader loader = appGridAdapter.getLoader();
-        CachedAppAssetLoader.LoaderTuple tuple = new CachedAppAssetLoader.LoaderTuple(computer, firstApp.app);
-        
-        // Try memory cache first for immediate display
-        ScaledBitmap cachedBitmap = loader.getBitmapFromCache(tuple);
-        if (cachedBitmap != null && cachedBitmap.bitmap != null) {
-            backgroundImageManager.setBackgroundSmoothly(cachedBitmap.bitmap);
-        } else {
-            // Load asynchronously if not in cache
-            ImageView tempImageView = new ImageView(this);
-            loader.populateImageView(firstApp, tempImageView, null, false, () -> {
-                if (tempImageView.getDrawable() instanceof BitmapDrawable) {
-                    Bitmap bitmap = ((BitmapDrawable) tempImageView.getDrawable()).getBitmap();
-                    if (bitmap != null) {
-                        backgroundImageManager.setBackgroundSmoothly(bitmap);
-                    }
-                }
-            });
-        }
     }
 
     @Override
@@ -1131,8 +1010,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         // 设置事件监听器
         setupRecyclerViewListeners(rv);
 
-        // 应用UI配置
-        UiHelper.applyStatusBarPadding(rv);
         registerForContextMenu(rv);
     }
 

@@ -145,7 +145,7 @@
     <string name="title_resolution_list"> 视频分辨率 </string>
     <string name="summary_resolution_list">高分辨率提升图像清晰度。低分辨率提升在低端设备和较慢网络中的串流体验。</string>
     <string name="title_custom_resolutions"> 自定义分辨率 </string>
-    <string name="summary_custom_resolutions">杂鱼～那么多分辨率都不能满足你了啊！</string>
+    <string name="summary_custom_resolutions">设置自定义分辨率</string>
     <string name="custom_resolution_input_title">输入自定义分辨率</string>
     <string name="width_label">宽度:</string>
     <string name="height_label">高度:</string>
@@ -334,7 +334,7 @@
     <string name="summary_setup_guide">查看有关如何设置游戏电脑以进行流传输的说明</string>
     <string name="title_privacy_policy">隐私政策</string>
     <string name="summary_privacy_policy">查看 Moonlight 隐私政策</string>
-    <string name="title_about_mode">关于 月光威力加强版</string>
+    <string name="title_about_mode">关于</string>
     <string name="summary_about_mode">请前往GitHub查看，喜欢的话点个Star支持一下我们吧</string>
     <string name="check_for_updates">检查更新</string>
     <string name="summary_check_for_updates">检查是否有新版本可用</string>
@@ -446,12 +446,6 @@
     <!-- Analytics settings -->
     <string name="title_enable_analytics">启用统计分析</string>
     <string name="summary_enable_analytics">通过分享匿名使用统计数据来帮助改进应用</string>
-    
-    <!-- Background image API -->
-    <string name="title_background_image_api">背景图片API</string>
-    <string name="summary_background_image_api">输入自定义背景图片的API，也可以是单张图片地址哦，留空就是看随机涩图</string>
-    <string name="dialog_title_background_image_api">背景图片API</string>
-    <string name="dialog_message_background_image_api">请输入完整的图片API</string>
     
     <!-- Reverse resolution -->
     <string name="title_checkbox_reverse_resolution">反转分辨率</string>

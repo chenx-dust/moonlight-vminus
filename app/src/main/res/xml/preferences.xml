@@ -434,13 +434,6 @@
             android:key="checkbox_small_icon_mode"
             android:title="@string/title_checkbox_small_icon_mode"
             android:summary="@string/summary_checkbox_small_icon_mode" />
-        <EditTextPreference
-            android:key="background_image_url"
-            android:title="@string/title_background_image_api"
-            android:summary="@string/summary_background_image_api"
-            android:dialogTitle="@string/dialog_title_background_image_api"
-            android:dialogMessage="@string/dialog_message_background_image_api"
-            android:defaultValue="" />
         <CheckBoxPreference
             android:key="checkbox_enable_analytics"
             android:title="@string/title_enable_analytics"
@@ -547,6 +540,6 @@
         <com.limelight.preferences.WebLauncherPreference
             android:title="@string/title_privacy_policy"
             android:summary="@string/summary_privacy_policy"
-            url="https://github.com/qiin2333/moonlight-android/blob/master/PRIVACY_POLICY.md"/>
+            url="https://github.com/chenx-dust/moonlight-vminus/blob/master/PRIVACY_POLICY.md"/>
     </PreferenceCategory>
 </PreferenceScreen>

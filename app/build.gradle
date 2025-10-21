@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         minSdk 22
-        targetSdk 35
+        targetSdk 36
 
         versionName "12.3.12"
         versionCode = 341
@@ -36,7 +36,7 @@ android {
         root {
             // Android O has native mouse capture, so don't show the rooted
             // version to devices running O on the Play Store.
-            maxSdk 25
+            maxSdk { 25 }
 
             externalNativeBuild {
                 ndkBuild {
@@ -107,11 +107,10 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ".debug"
-            resValue "string", "app_label", "月光-威力加强版"
-            resValue "string", "app_label_root", "月光-威力加强版"
+            applicationIdSuffix ".vminus.debug"
+            resValue "string", "app_label", "Moonlight V-"
+            resValue "string", "app_label_root", "Moonlight V- (Root)"
 
-            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         release {
@@ -145,12 +144,12 @@ android {
             // is to please change the applicationId before you publish.
             //
             // TL;DR: Leave the following line alone!
-            applicationIdSuffix ".qiin"
-            resValue "string", "app_label", "Moonlight"
-            resValue "string", "app_label_root", "Moonlight (Root)"
+            applicationIdSuffix ".vminus"
+            resValue "string", "app_label", "Moonlight V-"
+            resValue "string", "app_label_root", "Moonlight V- (Root)"
 
             minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig && signingConfigs.hasProperty('release')) {
                 signingConfig signingConfigs.release
             }
@@ -175,14 +174,6 @@ dependencies {
     implementation 'com.github.ZeyuKeithFu:KeyboardHeaderLayout:v1.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'com.google.code.gson:gson:2.13.2'
-    implementation 'com.github.bumptech.glide:glide:5.0.5'
-    implementation 'jp.wasabeef:glide-transformations:4.3.0'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:5.0.5'
-    implementation 'com.squareup:seismic:1.0.3'
-
-    // Firebase Analytics
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-analytics'
 }

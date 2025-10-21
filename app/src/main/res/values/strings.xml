@@ -374,9 +374,9 @@
     <string name="summary_about_mode">View app information and project details</string>
     
     <!-- About dialog strings -->
-    <string name="about_dialog_description">Moonlight V+ is an enhanced version of Moonlight Android client, providing better streaming experience with additional features.</string>
+    <string name="about_dialog_description">Moonlight V- is an simplified version of Moonlight V+, without anime resources.</string>
     <string name="about_dialog_project_info">Based on Moonlight-Android project, enhanced by V+ team</string>
-    <string name="about_dialog_thanks">Thank you for using Moonlight V+! If you like it, please give us a star on GitHub.</string>
+    <string name="about_dialog_thanks">Thank you for using Moonlight V-! If you like it, please give us a star on GitHub.</string>
     <string name="about_dialog_github">GitHub</string>
     <string name="about_dialog_star">Star Project</string>
     <string name="about_dialog_close">Close</string>
@@ -471,12 +471,6 @@
     <!-- External display -->
     <string name="title_use_external_display">Use External Display</string>
     <string name="summary_use_external_display">If an external display is connected, display the stream on the external display</string>
-    
-    <!-- Background image API -->
-    <string name="title_background_image_api">Background Image API</string>
-    <string name="summary_background_image_api">Enter a custom background image API, or a single image URL. Leave empty to view random images</string>
-    <string name="dialog_title_background_image_api">Background Image API</string>
-    <string name="dialog_message_background_image_api">Please enter the complete image API</string>
     
     <!-- Reverse resolution -->
     <string name="title_checkbox_reverse_resolution">Reverse Resolution</string>
