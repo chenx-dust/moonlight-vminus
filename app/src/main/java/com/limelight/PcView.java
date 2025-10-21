@@ -2,8 +2,6 @@ package com.limelight;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.net.UnknownHostException;
 
 import com.limelight.binding.PlatformBinding;
@@ -30,7 +28,6 @@ import com.limelight.utils.Iperf3Tester;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
-import com.limelight.utils.UpdateManager;
 import com.limelight.utils.AppCacheManager;
 import com.limelight.utils.CacheHelper;
 import com.limelight.dialogs.AddressSelectionDialog;
@@ -45,19 +42,14 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Service;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.LruCache;
 import android.view.ContextMenu;
@@ -67,12 +59,9 @@ import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AbsListView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
-
-import androidx.annotation.NonNull;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -376,9 +365,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         shortcutHelper = new ShortcutHelper(this);
 
         UiHelper.setLocale(this);
-
-        // 检查应用更新
-        UpdateManager.checkForUpdatesOnStartup(this);
 
         // Bind to the computer manager service
         bindService(new Intent(PcView.this, ComputerManagerService.class), serviceConnection,
