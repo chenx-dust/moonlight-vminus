@@ -30,7 +30,6 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.Toast;
 import android.graphics.Color;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.graphics.drawable.GradientDrawable;
@@ -50,7 +49,6 @@ import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.AspectRatioConverter;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
-import com.limelight.utils.UpdateManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -975,13 +973,6 @@ public class StreamSettings extends Activity {
                 startActivity(intent);
                 return true;
             });
-
-            // 添加检查更新选项的点击事件
-            findPreference("check_for_updates").setOnPreferenceClickListener(preference -> {
-                UpdateManager.checkForUpdates(getActivity(), true);
-                return true;
-            });
-
         }
 
         @Override
