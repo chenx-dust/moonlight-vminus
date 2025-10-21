@@ -8,7 +8,6 @@ import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.advance_setting.ControllerManager;
-import com.limelight.binding.input.advance_setting.TouchController;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
@@ -43,7 +42,6 @@ import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.FullscreenProgressOverlay;
 import com.limelight.utils.UiHelper;
 import com.limelight.utils.NetHelper;
-import com.limelight.utils.AnalyticsManager;
 import com.limelight.utils.AppCacheManager;
 import com.limelight.utils.AppSettingsManager;
 
@@ -158,7 +156,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private boolean autoEnterPip = false;
     private boolean surfaceCreated = false;
     private boolean attemptedConnection = false;
-    private AnalyticsManager analyticsManager;
     private long streamStartTime;
     private int suppressPipRefCount = 0;
     private String pcName;
@@ -485,9 +482,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         appName = Game.this.getIntent().getStringExtra(EXTRA_APP_NAME);
         pcName = Game.this.getIntent().getStringExtra(EXTRA_PC_NAME);
-        
-        // 初始化统计分析管理器
-        analyticsManager = AnalyticsManager.getInstance(this);
 
         String host = Game.this.getIntent().getStringExtra(EXTRA_HOST);
         int port = Game.this.getIntent().getIntExtra(EXTRA_PORT, NvHTTP.DEFAULT_HTTP_PORT);
@@ -1524,29 +1518,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         .apply();
             }
         }
-
-        // 记录游戏流媒体结束事件
-        if (analyticsManager != null && pcName != null && streamStartTime > 0) {
-            long streamDuration = System.currentTimeMillis() - streamStartTime;
-            
-            // 收集性能数据
-            int resolutionWidth = 0;
-            int resolutionHeight = 0;
-            int averageEndToEndLatency = 0;
-            int averageDecoderLatency = 0;
-            
-            if (decoderRenderer != null) {
-                resolutionWidth = prefConfig.width;
-                resolutionHeight = prefConfig.height;
-                averageEndToEndLatency = decoderRenderer.getAverageEndToEndLatency();
-                averageDecoderLatency = decoderRenderer.getAverageDecoderLatency();
-            }
-            
-            analyticsManager.logGameStreamEnd(pcName, appName, streamDuration,
-                decoderMessage, resolutionWidth, resolutionHeight,
-                averageEndToEndLatency, averageDecoderLatency);
-        }
-
         finish();
     }
 
@@ -3226,12 +3197,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     microphoneManager.setDefaultStateOff();
                 }
             });
-        }
-        
-        // 记录游戏流媒体开始事件
-        streamStartTime = System.currentTimeMillis();
-        if (analyticsManager != null && pcName != null) {
-            analyticsManager.logGameStreamStart(pcName, appName);
         }
     }
 

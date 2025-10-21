@@ -1,12 +1,14 @@
 <div align="center">
   <img src="./app/src/main/res/drawable/vplus.webp" width="100" alt="Moonlight V+ Logo">
   
-  # Moonlight V+ 威力加强版
+  # Moonlight V- 简化版
   
-  [![Version](https://img.shields.io/badge/version-12.3.9-blue.svg)](https://github.com/qiin2333/moonlight-android/releases/tag/shortcut)
+  [![Version](https://img.shields.io/badge/version-12.3.9-blue.svg)](https://github.com/chenx-dust/moonlight-vminus/releases/tag/shortcut)
   [![Android](https://img.shields.io/badge/Android-5.0+-green.svg)](https://developer.android.com/about/versions)
   [![License](https://img.shields.io/badge/license-GPL%20v3-orange.svg)](LICENSE.txt)
-  [![Stars](https://img.shields.io/github/stars/qiin2333/moonlight-android?style=social)](https://github.com/qiin2333/moonlight-android)
+  [![Stars](https://img.shields.io/github/stars/chenx-dust/moonlight-vminus?style=social)](https://github.com/chenx-dust/moonlight-vminus)
+  
+  **移除了 VPlus 版中的二次元部分（**
   
   **基于 Moonlight 的增强版 Android 串流客户端** 🎮
   
@@ -62,14 +64,14 @@
 ### 安装方式
 
 #### 方式一：下载 APK（最简单的方式！）
-1. 从 [Releases](https://github.com/qiin2333/moonlight-android/releases) 页面下载最新版本
+1. 从 [Releases](https://github.com/chenx-dust/moonlight-vminus/releases) 页面下载最新版本
 2. 安装 APK 文件
 3. 按照应用内指引完成设置
 
 #### 方式二：从源码编译
 ```bash
 # 克隆仓库
-git clone https://github.com/qiin2333/moonlight-android.git
+git clone https://github.com/chenx-dust/moonlight-vminus.git
 cd moonlight-android
 
 # 编译项目

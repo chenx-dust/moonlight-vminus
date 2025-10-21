@@ -4,18 +4,11 @@
     android:layout_height="match_parent"
     tools:context=".PcView" >
 
-    <ImageView
-        android:id="@+id/pcBackgroundImage"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop" />
-
     <RelativeLayout
         android:id="@+id/pcFragmentContainer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:layout_marginTop="@dimen/activity_horizontal_margin"
         android:layout_alignParentBottom="true"
         android:layout_alignParentTop="true"
         android:layout_toRightOf="@+id/settingsButton"
@@ -54,7 +47,6 @@
         android:cropToPadding="false"
         android:scaleType="fitXY"
         android:nextFocusForward="@id/helpButton"
-        android:layout_marginTop="@dimen/activity_horizontal_margin"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
@@ -73,7 +65,7 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
         android:layout_below="@id/settingsButton"
-        android:src="@drawable/ic_qq"
+        android:src="@drawable/ic_help"
         style="?android:attr/borderlessButtonStyle"/>
 
     <ImageButton

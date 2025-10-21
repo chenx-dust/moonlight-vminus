@@ -23,7 +23,6 @@
         android:fillViewport="true"
         android:scrollbars="none"
         android:layout_alignParentTop="true"
-        android:paddingTop="@dimen/activity_safearea_top"
         android:paddingBottom="8dp"
         android:paddingLeft="0dp"
         android:paddingRight="0dp"
