@@ -117,9 +117,6 @@
         <item name="android:textViewStyle">@style/PreferenceTextWithShadow</item>
         <item name="android:titleTextAppearance">@style/PreferenceTitleWithShadow</item>
         <item name="android:subtitleTextAppearance">@style/PreferenceSummaryWithShadow</item>
-        <item name="android:colorAccent">@color/theme_pink_secondary</item>
-        <item name="android:textColorPrimary">@color/theme_pink_secondary</item>
-        <item name="android:listDivider">@color/theme_pink_secondary</item>
     </style>
 
     <style name="PreferenceTextWithShadow">
