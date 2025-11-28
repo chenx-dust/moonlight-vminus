@@ -142,10 +142,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
     public String clientName;
     private LruCache<String, Bitmap> bitmapLruCache;
     private AnalyticsManager analyticsManager;
-    private EasyTierManager easyTierManager;
-    private static final int VPN_PERMISSION_REQUEST_CODE = 101;
-    private static final String EASYTIER_PREFS = "easytier_preferences";
-    private static final String KEY_TOML_CONFIG = "toml_config_string";
 
     // 添加场景配置相关常量
     private static final String SCENE_PREF_NAME = "SceneConfigs";
