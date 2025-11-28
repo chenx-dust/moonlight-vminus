@@ -35,7 +35,6 @@
         android:layout_height="60dp"
         android:cropToPadding="false"
         android:scaleType="fitCenter"
-        android:layout_marginTop="@dimen/activity_safearea_top"
         android:paddingTop="20dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"

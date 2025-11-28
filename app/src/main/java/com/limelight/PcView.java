@@ -141,7 +141,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
 
     public String clientName;
     private LruCache<String, Bitmap> bitmapLruCache;
-    private AnalyticsManager analyticsManager;
 
     // 添加场景配置相关常量
     private static final String SCENE_PREF_NAME = "SceneConfigs";
