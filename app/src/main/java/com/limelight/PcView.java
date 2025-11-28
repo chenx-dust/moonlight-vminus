@@ -80,6 +80,8 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private boolean freezeUpdates, runningPolling, inForeground, completeOnCreateCalled;
 
+    private AddressSelectionDialog currentAddressDialog;
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder binder) {
             final ComputerManagerService.ComputerManagerBinder localBinder =
@@ -139,6 +141,11 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
 
     public String clientName;
     private LruCache<String, Bitmap> bitmapLruCache;
+    private AnalyticsManager analyticsManager;
+    private EasyTierManager easyTierManager;
+    private static final int VPN_PERMISSION_REQUEST_CODE = 101;
+    private static final String EASYTIER_PREFS = "easytier_preferences";
+    private static final String KEY_TOML_CONFIG = "toml_config_string";
 
     // 添加场景配置相关常量
     private static final String SCENE_PREF_NAME = "SceneConfigs";
@@ -322,6 +329,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
                 Toast.makeText(this, getResources().getString(R.string.scene_not_configured, sceneNumber), Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
+            LimeLog.warning("Scene apply failed: "+ e);
             runOnUiThread(() -> Toast.makeText(PcView.this, getResources().getString(R.string.config_apply_failed), Toast.LENGTH_SHORT).show());
         }
     }
@@ -419,6 +427,12 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         if (managerBinder != null) {
             unbindService(serviceConnection);
         }
+        
+        // 关闭地址选择对话框
+        if (currentAddressDialog != null) {
+            currentAddressDialog.dismiss();
+            currentAddressDialog = null;
+        }
     }
 
     @Override
@@ -445,6 +459,12 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         super.onStop();
 
         Dialog.closeDialogs();
+
+        // 关闭地址选择对话框
+        if (currentAddressDialog != null) {
+            currentAddressDialog.dismiss();
+            currentAddressDialog = null;
+        }
     }
 
     @Override
@@ -727,16 +747,25 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
      * 显示地址选择对话框
      */
     private void showAddressSelectionDialog(ComputerDetails computer) {
-        AddressSelectionDialog dialog = new AddressSelectionDialog(this, computer, address -> {
+        // 如果已经有对话框在显示，先关闭它
+        if (currentAddressDialog != null) {
+            currentAddressDialog.dismiss();
+            currentAddressDialog = null;
+        }
+
+        currentAddressDialog = new AddressSelectionDialog(this, computer, address -> {
             // 使用选中的地址创建临时ComputerDetails对象
             ComputerDetails tempComputer = new ComputerDetails(computer);
             tempComputer.activeAddress = address;
 
             // 使用选中的地址进入应用列表
             doAppList(tempComputer, false, false);
+
+            // 清除对话框引用
+            currentAddressDialog = null;
         });
         
-        dialog.show();
+        currentAddressDialog.show();
     }
 
     @Override

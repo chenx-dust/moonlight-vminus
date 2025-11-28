@@ -3,7 +3,7 @@
   
   # Moonlight V- 简化版
   
-  [![Version](https://img.shields.io/badge/version-12.3.9-blue.svg)](https://github.com/chenx-dust/moonlight-vminus/releases/tag/shortcut)
+  [![Version](https://img.shields.io/badge/version-12.4.2-blue.svg)](https://github.com/chenx-dust/moonlight-vminus/releases/tag/shortcut)
   [![Android](https://img.shields.io/badge/Android-5.0+-green.svg)](https://developer.android.com/about/versions)
   [![License](https://img.shields.io/badge/license-GPL%20v3-orange.svg)](LICENSE.txt)
   [![Stars](https://img.shields.io/github/stars/chenx-dust/moonlight-vminus?style=social)](https://github.com/chenx-dust/moonlight-vminus)
