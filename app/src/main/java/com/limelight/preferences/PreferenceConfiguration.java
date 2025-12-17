@@ -95,19 +95,20 @@ public class PreferenceConfiguration {
     private static final String VIBRATE_FALLBACK_PREF_STRING = "checkbox_vibrate_fallback";
     private static final String VIBRATE_FALLBACK_STRENGTH_PREF_STRING = "seekbar_vibrate_fallback_strength";
     private static final String FLIP_FACE_BUTTONS_PREF_STRING = "checkbox_flip_face_buttons";
-    private static final String TOUCHSCREEN_TRACKPAD_PREF_STRING = "checkbox_touchscreen_trackpad";
+    public static final String TOUCHSCREEN_TRACKPAD_PREF_STRING = "checkbox_touchscreen_trackpad";
     private static final String LATENCY_TOAST_PREF_STRING = "checkbox_enable_post_stream_toast";
     private static final String ENABLE_STUN_PREF_STRING = "checkbox_enable_stun";
     private static final String LOCK_SCREEN_AFTER_DISCONNECT_PREF_STRING = "checkbox_lock_screen_after_disconnect";
     private static final String SWAP_QUIT_AND_DISCONNECT_PERF_STRING = "checkbox_swap_quit_and_disconnect";
     private static final String FRAME_PACING_PREF_STRING = "frame_pacing";
     private static final String ABSOLUTE_MOUSE_MODE_PREF_STRING = "checkbox_absolute_mouse_mode";
-    private static final String ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING = "checkbox_enable_native_mouse_pointer";
+    public static final String ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING = "checkbox_enable_native_mouse_pointer";
+    public static final String NATIVE_MOUSE_MODE_PRESET_PREF_STRING = "list_native_mouse_mode_preset";
     // Card visibility preferences
     private static final String SHOW_BITRATE_CARD_PREF_STRING = "checkbox_show_bitrate_card";
     private static final String SHOW_GYRO_CARD_PREF_STRING = "checkbox_show_gyro_card";
 
-    private static final String ENABLE_ENHANCED_TOUCH_PREF_STRING = "checkbox_enable_enhanced_touch";
+    public static final String ENABLE_ENHANCED_TOUCH_PREF_STRING = "checkbox_enable_enhanced_touch";
     private static final String ENHANCED_TOUCH_ON_RIGHT_PREF_STRING = "checkbox_enhanced_touch_on_which_side";
     private static final String ENHANCED_TOUCH_ZONE_DIVIDER_PREF_STRING = "enhanced_touch_zone_divider";
     private static final String POINTER_VELOCITY_FACTOR_PREF_STRING = "pointer_velocity_factor";
@@ -131,7 +132,11 @@ public class PreferenceConfiguration {
     // 麦克风设置
     private static final String ENABLE_MIC_PREF_STRING = "checkbox_enable_mic";
     private static final String MIC_BITRATE_PREF_STRING = "seekbar_mic_bitrate_kbps";
+    private static final String MIC_ICON_COLOR_PREF_STRING = "list_mic_icon_color";
     private static final String ENABLE_ESC_MENU_PREF_STRING = "checkbox_enable_esc_menu";
+    
+    // 控制流only模式设置
+    private static final String CONTROL_ONLY_PREF_STRING = "checkbox_control_only";
 
     //wg
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
@@ -167,6 +172,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_MOUSE_EMULATION = true;
     private static final String DEFAULT_ANALOG_STICK_FOR_SCROLLING = "right";
     private static final boolean DEFAULT_MOUSE_NAV_BUTTONS = false;
+    private static final String DEFAULT_NATIVE_MOUSE_MODE_PRESET = "classic";
     private static final boolean DEFAULT_UNLOCK_FPS = false;
     private static final boolean DEFAULT_VIBRATE_OSC = true;
     private static final boolean DEFAULT_VIBRATE_FALLBACK = false;
@@ -196,7 +202,11 @@ public class PreferenceConfiguration {
     // 麦克风设置默认值
     private static final boolean DEFAULT_ENABLE_MIC = false;
     private static final int DEFAULT_MIC_BITRATE = 96; // 默认128 kbps
+    private static final String DEFAULT_MIC_ICON_COLOR = "solid_white"; // 默认白
     private static final boolean DEFAULT_ENABLE_ESC_MENU = true; // 默认启用ESC菜单
+    
+    // 控制流only模式默认值
+    private static final boolean DEFAULT_CONTROL_ONLY = false;
 
     private static final boolean DEFAULT_ENABLE_DOUBLE_CLICK_DRAG = false;
     public boolean enableDoubleClickDrag;
@@ -333,9 +343,13 @@ public class PreferenceConfiguration {
     // 麦克风设置
     public boolean enableMic;
     public int micBitrate;
+    public String micIconColor;
     
     // ESC菜单设置
     public boolean enableEscMenu;
+    
+    // 控制流only模式设置
+    public boolean controlOnly;
 
     public ScreenPosition screenPosition;
     public int screenOffsetX;
@@ -802,7 +816,18 @@ public class PreferenceConfiguration {
         config.lockScreenAfterDisconnect = prefs.getBoolean(LOCK_SCREEN_AFTER_DISCONNECT_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.swapQuitAndDisconnect = prefs.getBoolean(SWAP_QUIT_AND_DISCONNECT_PERF_STRING, DEFAULT_LATENCY_TOAST);
         config.absoluteMouseMode = prefs.getBoolean(ABSOLUTE_MOUSE_MODE_PREF_STRING, DEFAULT_ABSOLUTE_MOUSE_MODE);
-        config.enableNativeMousePointer = prefs.getBoolean(ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING, DEFAULT_ENABLE_NATIVE_MOUSE_POINTER);
+        
+        // 对于没有触摸屏的设备，默认启用本地鼠标指针
+        boolean hasTouchscreen = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
+        boolean defaultNativeMouse = hasTouchscreen ? DEFAULT_ENABLE_NATIVE_MOUSE_POINTER : true;
+        config.enableNativeMousePointer = prefs.getBoolean(ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING, defaultNativeMouse);
+        
+        // 如果没有触摸屏，强制设置为本地鼠标指针模式
+        if (!hasTouchscreen) {
+            config.enableNativeMousePointer = true;
+            config.enableEnhancedTouch = false;
+            config.touchscreenTrackpad = false;
+        }
         config.enableAudioFx = prefs.getBoolean(ENABLE_AUDIO_FX_PREF_STRING, DEFAULT_ENABLE_AUDIO_FX);
         config.enableSpatializer = prefs.getBoolean(ENABLE_SPATIALIZER_PREF_STRING, DEFAULT_ENABLE_SPATIALIZER);
         config.reduceRefreshRate = prefs.getBoolean(REDUCE_REFRESH_RATE_PREF_STRING, DEFAULT_REDUCE_REFRESH_RATE);
@@ -825,9 +850,13 @@ public class PreferenceConfiguration {
         // 读取麦克风设置
         config.enableMic = prefs.getBoolean(ENABLE_MIC_PREF_STRING, DEFAULT_ENABLE_MIC);
         config.micBitrate = prefs.getInt(MIC_BITRATE_PREF_STRING, DEFAULT_MIC_BITRATE);
+        config.micIconColor = prefs.getString(MIC_ICON_COLOR_PREF_STRING, DEFAULT_MIC_ICON_COLOR);
         
         // 读取ESC菜单设置
         config.enableEscMenu = prefs.getBoolean(ENABLE_ESC_MENU_PREF_STRING, DEFAULT_ENABLE_ESC_MENU);
+        
+        // 读取控制流only模式设置
+        config.controlOnly = prefs.getBoolean(CONTROL_ONLY_PREF_STRING, DEFAULT_CONTROL_ONLY);
 
         config.reverseResolution = prefs.getBoolean(REVERSE_RESOLUTION_PREF_STRING, DEFAULT_REVERSE_RESOLUTION);
         config.rotableScreen = prefs.getBoolean(ROTABLE_SCREEN_PREF_STRING, DEFAULT_ROTABLE_SCREEN);
@@ -956,7 +985,9 @@ public class PreferenceConfiguration {
                     .putBoolean(USE_EXTERNAL_DISPLAY_PREF_STRING, useExternalDisplay)
                     .putBoolean(ENABLE_MIC_PREF_STRING, enableMic)
                     .putInt(MIC_BITRATE_PREF_STRING, micBitrate)
+                    .putString(MIC_ICON_COLOR_PREF_STRING, micIconColor)
                     .putBoolean(ENABLE_ESC_MENU_PREF_STRING, enableEscMenu)
+                    .putBoolean(CONTROL_ONLY_PREF_STRING, controlOnly)
                     .putBoolean(ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING, enableNativeMousePointer)
                     .putFloat(GYRO_SENSITIVITY_MULTIPLIER_PREF_STRING, gyroSensitivityMultiplier)
                     .putBoolean(GYRO_INVERT_X_AXIS_PREF_STRING, gyroInvertXAxis)
@@ -994,7 +1025,9 @@ public class PreferenceConfiguration {
         copy.screenOffsetY = this.screenOffsetY;
         copy.useExternalDisplay = this.useExternalDisplay;
         copy.enableMic = this.enableMic;
+        copy.controlOnly = this.controlOnly;
         copy.micBitrate = this.micBitrate;
+        copy.micIconColor = this.micIconColor;
         copy.enableEscMenu = this.enableEscMenu;
         copy.enableNativeMousePointer = this.enableNativeMousePointer;
         copy.gyroToRightStick = this.gyroToRightStick;

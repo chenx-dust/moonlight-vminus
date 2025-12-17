@@ -3,7 +3,7 @@
   
   # Moonlight V- 简化版
   
-  [![Version](https://img.shields.io/badge/version-12.4.2-blue.svg)](https://github.com/chenx-dust/moonlight-vminus/releases/tag/shortcut)
+  [![Version](https://img.shields.io/badge/version-12.4.7-blue.svg)](https://github.com/chenx-dust/moonlight-vminus/releases/tag/shortcut)
   [![Android](https://img.shields.io/badge/Android-5.0+-green.svg)](https://developer.android.com/about/versions)
   [![License](https://img.shields.io/badge/license-GPL%20v3-orange.svg)](LICENSE.txt)
   [![Stars](https://img.shields.io/github/stars/chenx-dust/moonlight-vminus?style=social)](https://github.com/chenx-dust/moonlight-vminus)
@@ -145,8 +145,7 @@ cd moonlight-android
 - 〰️ 实时码率调整
 - 🎮 超级菜单指令
 - 🎨 应用桌面美化
-- 📱 自定义分辨率串流
-- 📸 串流自动启用 HDR 校准文件
+- 💻 主机自动优化
 
 
 ## 🤝 贡献

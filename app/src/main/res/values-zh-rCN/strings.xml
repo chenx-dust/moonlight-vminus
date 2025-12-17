@@ -368,6 +368,8 @@
     <string name="title_seekbar_mic_bitrate">麦克风传输音质</string>
     <string name="summary_seekbar_mic_bitrate">调整麦克风重定向的音频质量。更高的比特率提供更好的音频质量，但会使用更多带宽。</string>
     <string name="suffix_seekbar_mic_bitrate_kbps">kbps</string>
+    <string name="title_list_mic_icon_color">麦克风图标颜色</string>
+    <string name="summary_list_mic_icon_color">选择麦克风按钮图标的颜色</string>
     <string name="title_checkbox_reduce_refresh_rate">允许降低刷新率</string>
     <string name="summary_checkbox_reduce_refresh_rate">较低的屏幕刷新率可以在增加一些视频延迟的情况下省电</string>
     <string name="frame_conversion_error">主机 PC 报告了致命的视频编码错误。
@@ -488,6 +490,15 @@
     <string name="toast_touch_mode_classic_on">经典鼠标模式已开启</string>
     <string name="toast_touch_mode_trackpad_on">触控板模式已开启</string>
     <string name="toast_touch_mode_native_mouse_on">本地鼠标指针已开启</string>
+
+    <!-- 本地鼠标模式预设 -->
+    <string name="title_list_native_mouse_mode_preset">鼠标模式预设</string>
+    <string name="summary_list_native_mouse_mode_preset">选择鼠标/触控模式的配置</string>
+    <string name="native_mouse_mode_preset_enhanced">增强式多点触控</string>
+    <string name="native_mouse_mode_preset_classic">经典鼠标模式</string>
+    <string name="native_mouse_mode_preset_trackpad">触控板模式</string>
+    <string name="native_mouse_mode_preset_native">本地鼠标指针</string>
+    <string name="toast_preset_applied">预设已应用: %s</string>
 
     <!-- 自定义特殊按键 -->
     <!-- 菜单项 -->
