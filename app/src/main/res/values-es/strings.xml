@@ -397,6 +397,12 @@
     <string name="perf_packet_loss_title">📶 Información de Pérdida de Paquetes</string>
     <string name="perf_packet_loss_info">La pérdida de paquetes representa el porcentaje de paquetes de datos perdidos durante la transmisión de red.\n\nRango Normal:\n• 0-0.5%: Excelente calidad de red\n• 0.5-2%: Buena calidad de red\n• 2-5%: Calidad justa de red\n• &gt;5%: Pobre calidad de red\n\nFactores que Influyen:\n• Estabilidad de red\n• Rendimiento del router\n• Fuerza de señal inalámbrica</string>
     <string name="perf_moon_phase_info">Fase Lunar de Hoy\n\n%s %s\nCiclo de Fase Lunar: %.1f%%\nDía del Ciclo: Día %d\nFecha: %s\n\n%s</string>
+    <!-- perf Battery Information -->
+    <string name="perf_battery_info_title">🔋 Información de Batería</string>
+    <string name="perf_battery_status_sufficient">El nivel de batería es suficiente</string>
+    <string name="perf_battery_status_low">El nivel de batería es bajo, se recomienda cargar</string>
+    <string name="perf_battery_status_critical">El nivel de batería es críticamente bajo, por favor carga pronto</string>
+    <string name="perf_battery_info_content">Batería Actual: %1$d%%\nEstado: %2$s\n\nConsejo: Un nivel bajo de batería puede afectar la experiencia de juego, se recomienda conectar el cargador</string>
     <string name="resolution_added_successfully">Resolución agregada exitosamente</string>
     <string name="resolution_already_exists">Esta resolución ya existe</string>
     <string name="suffix_enhanced_touch_zone_divider">%</string>

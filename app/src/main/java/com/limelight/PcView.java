@@ -41,8 +41,10 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -362,6 +364,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         }
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void completeOnCreate() {
         completeOnCreateCalled = true;
 
@@ -374,6 +377,23 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
                 Service.BIND_AUTO_CREATE);
 
         pcGridAdapter = new PcGridAdapter(this, PreferenceConfiguration.readPreferences(this));
+
+        // 注册背景图片刷新广播接收器
+        backgroundImageRefreshReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if ("com.limelight.REFRESH_BACKGROUND_IMAGE".equals(intent.getAction())) {
+                    // 传入 false，表示这不是通过摇一摇触发的，不需要显示每日限制提示
+                    refreshBackgroundImage(false);
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter("com.limelight.REFRESH_BACKGROUND_IMAGE");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(backgroundImageRefreshReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(backgroundImageRefreshReceiver, filter);
+        }
 
         initializeViews();
     }
@@ -454,12 +474,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         super.onStop();
 
         Dialog.closeDialogs();
-
-        // 关闭地址选择对话框
-        if (currentAddressDialog != null) {
-            currentAddressDialog.dismiss();
-            currentAddressDialog = null;
-        }
     }
 
     @Override
@@ -742,25 +756,16 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
      * 显示地址选择对话框
      */
     private void showAddressSelectionDialog(ComputerDetails computer) {
-        // 如果已经有对话框在显示，先关闭它
-        if (currentAddressDialog != null) {
-            currentAddressDialog.dismiss();
-            currentAddressDialog = null;
-        }
-
-        currentAddressDialog = new AddressSelectionDialog(this, computer, address -> {
+        AddressSelectionDialog dialog = new AddressSelectionDialog(this, computer, address -> {
             // 使用选中的地址创建临时ComputerDetails对象
             ComputerDetails tempComputer = new ComputerDetails(computer);
             tempComputer.activeAddress = address;
 
             // 使用选中的地址进入应用列表
             doAppList(tempComputer, false, false);
-
-            // 清除对话框引用
-            currentAddressDialog = null;
         });
         
-        currentAddressDialog.show();
+        dialog.show();
     }
 
     @Override
