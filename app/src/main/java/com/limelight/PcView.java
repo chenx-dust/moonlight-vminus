@@ -378,23 +378,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
 
         pcGridAdapter = new PcGridAdapter(this, PreferenceConfiguration.readPreferences(this));
 
-        // 注册背景图片刷新广播接收器
-        backgroundImageRefreshReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if ("com.limelight.REFRESH_BACKGROUND_IMAGE".equals(intent.getAction())) {
-                    // 传入 false，表示这不是通过摇一摇触发的，不需要显示每日限制提示
-                    refreshBackgroundImage(false);
-                }
-            }
-        };
-        IntentFilter filter = new IntentFilter("com.limelight.REFRESH_BACKGROUND_IMAGE");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(backgroundImageRefreshReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(backgroundImageRefreshReceiver, filter);
-        }
-
         initializeViews();
     }
 

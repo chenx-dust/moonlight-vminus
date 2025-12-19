@@ -5,33 +5,38 @@
     android:layout_height="match_parent"
     tools:context=".Game" >
 
-    <View
-        android:id="@+id/backgroundTouchView"
+    <FrameLayout
+        android:id="@+id/surfaceFrame"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center" />
+        android:layout_height="match_parent">
+        <View
+            android:id="@+id/backgroundTouchView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
 
-    <com.limelight.ui.StreamView
-        android:id="@+id/surfaceView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:focusedByDefault="true"
-        android:defaultFocusHighlightEnabled="false">
-        <requestFocus />
-    </com.limelight.ui.StreamView>
+        <com.limelight.ui.StreamView
+            android:id="@+id/surfaceView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:focusedByDefault="true"
+            android:defaultFocusHighlightEnabled="false">
+            <requestFocus />
+        </com.limelight.ui.StreamView>
 
-    <com.limelight.ui.CursorView
-        android:id="@+id/cursorOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/transparent"
-        android:visibility="gone"
-        android:clickable="false"
-        android:focusable="false"
-        android:elevation="10dp" />
+        <com.limelight.ui.CursorView
+            android:id="@+id/cursorOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:visibility="gone"
+            android:clickable="false"
+            android:focusable="false"
+            android:elevation="10dp" />
+    </FrameLayout>
 
     <FrameLayout
         android:id="@+id/advance_setting_view"
@@ -191,9 +196,9 @@
                 android:layout_height="24dp"
                 android:layout_marginEnd="12dp"
                 android:src="@drawable/ic_warning"
-                android:tint="#FFFFFF"
                 android:contentDescription="@string/notification_icon"
-                android:background="@drawable/icon_pulse_background" />
+                android:background="@drawable/icon_pulse_background"
+                app:tint="#FFFFFF" />
 
             <TextView
                 android:id="@+id/notificationText"
