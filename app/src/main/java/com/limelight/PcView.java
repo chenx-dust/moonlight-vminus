@@ -48,6 +48,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
@@ -60,10 +61,19 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AbsListView;
+import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
+import android.widget.TextView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.view.LayoutInflater;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.view.animation.AnimationUtils;
+import android.view.animation.LayoutAnimationController;
+import android.os.Handler;
+import android.os.Looper;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -77,7 +87,14 @@ import android.content.SharedPreferences;
 public class PcView extends Activity implements AdapterFragmentCallbacks {
     private RelativeLayout noPcFoundLayout;
     private PcGridAdapter pcGridAdapter;
+    private AbsListView pcListView;
+    private boolean isFirstLoad = true;
     private ShortcutHelper shortcutHelper;
+
+    // 防抖机制：合并短时间内的多次刷新请求
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingRefreshRunnable;
+    private static final long REFRESH_DEBOUNCE_DELAY = 150; // 150ms 防抖延迟
     private int selectedPosition = -1;
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private boolean freezeUpdates, runningPolling, inForeground, completeOnCreateCalled;
@@ -169,25 +186,13 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
 
         // Setup the list view
         ImageButton settingsButton = findViewById(R.id.settingsButton);
-        ImageButton addComputerButton = findViewById(R.id.manuallyAddPc);
-        ImageButton helpButton = findViewById(R.id.helpButton);
         ImageButton restoreSessionButton = findViewById(R.id.restoreSessionButton);
+        ImageButton aboutButton = findViewById(R.id.aboutButton);
 
         settingsButton.setOnClickListener(v -> startActivity(new Intent(PcView.this, StreamSettings.class)));
-        addComputerButton.setOnClickListener(v -> {
-            Intent i = new Intent(PcView.this, AddComputerManually.class);
-            startActivity(i);
-        });
-        helpButton.setOnClickListener(v -> {
-            HelpLauncher.launchSetupGuide(PcView.this);
-        });
         restoreSessionButton.setOnClickListener(v -> restoreLastSession());
-
-        // Amazon review didn't like the help button because the wiki was not entirely
-        // navigable via the Fire TV remote (though the relevant parts were). Let's hide
-        // it on Fire TV.
-        if (getPackageManager().hasSystemFeature("amazon.hardware.fire_tv")) {
-            helpButton.setVisibility(View.GONE);
+        if (aboutButton != null) {
+            aboutButton.setOnClickListener(v -> showAboutDialog());
         }
 
         getFragmentManager().beginTransaction()
@@ -195,13 +200,47 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
             .commitAllowingStateLoss();
 
         noPcFoundLayout = findViewById(R.id.no_pc_found_layout);
-        if (pcGridAdapter.getCount() == 0) {
+
+        // 确保添加卡片存在
+        addAddComputerCard();
+
+        if (pcGridAdapter.getCount() == 0 || pcGridAdapter.getCount() == 1 &&
+            PcGridAdapter.isAddComputerCard((ComputerObject) pcGridAdapter.getItem(0))) {
             noPcFoundLayout.setVisibility(View.VISIBLE);
         }
         else {
             noPcFoundLayout.setVisibility(View.INVISIBLE);
         }
-        pcGridAdapter.notifyDataSetChanged();
+
+        // 刷新数据（首次加载时不使用防抖）
+        if (isFirstLoad) {
+            // 取消任何待处理的防抖刷新
+            if (pendingRefreshRunnable != null) {
+                refreshHandler.removeCallbacks(pendingRefreshRunnable);
+                pendingRefreshRunnable = null;
+            }
+            // 首次加载时不直接刷新，等 receiveAdapterView 设置好 adapter 后再统一触发动画
+            // 如果 pcListView 已经存在（配置变化重建），则直接刷新
+            if (pcListView != null) {
+                pcGridAdapter.notifyDataSetChanged();
+            }
+        } else {
+            // 非首次加载，使用防抖刷新
+            debouncedNotifyDataSetChanged();
+        }
+    }
+
+    /**
+     * 更新眼睛图标按钮图标
+     */
+    private void updateToggleUnpairedButtonIcon(ImageButton button) {
+        if (button == null || pcGridAdapter == null) return;
+
+        if (pcGridAdapter.isShowUnpairedDevices()) {
+            button.setImageResource(R.drawable.ic_visibility);
+        } else {
+            button.setImageResource(R.drawable.ic_visibility_off);
+        }
     }
 
     @Override
@@ -478,6 +517,11 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         if (position < 0) return;
 
         ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(position);
+
+        // 添加卡片不显示上下文菜单
+        if (PcGridAdapter.isAddComputerCard(computer)) {
+            return;
+        }
 
         // Add a header with PC status details
         menu.clearHeader();
@@ -766,6 +810,11 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         if (position < 0) return super.onContextItemSelected(item);
 
         final ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(position);
+
+        // 添加卡片不显示上下文菜单
+        if (PcGridAdapter.isAddComputerCard(computer)) {
+            return super.onContextItemSelected(item);
+        }
         switch (item.getItemId()) {
             case PAIR_ID:
                 doPair(computer.details);
@@ -878,10 +927,10 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
             return;
         }
 
-        // 持续查找有运行游戏的在线主机
+        // 持续查找有运行游戏的在线主机（使用原始列表，查找所有主机）
         ComputerDetails targetComputer = null;
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);
+        for (int i = 0; i < pcGridAdapter.getRawCount(); i++) {
+            ComputerObject computer = pcGridAdapter.getRawItem(i);
             if (computer.details.state == ComputerDetails.State.ONLINE && 
                 computer.details.pairState == PairState.PAIRED &&
                 computer.details.runningGameId != 0) {
@@ -941,6 +990,11 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
     }
 
     private void removeComputer(ComputerDetails details) {
+        // 不允许删除添加卡片
+        if (PcGridAdapter.ADD_COMPUTER_UUID.equals(details.uuid)) {
+            return;
+        }
+
         managerBinder.removeComputer(details);
 
         new DiskAssetLoader(this).deleteAssetsForComputer(details.uuid);
@@ -951,8 +1005,14 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
                 .remove(details.uuid)
                 .apply();
 
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);
+        // 使用原始列表查找要删除的电脑（不管是否隐藏）
+        for (int i = 0; i < pcGridAdapter.getRawCount(); i++) {
+            ComputerObject computer = pcGridAdapter.getRawItem(i);
+
+            // 跳过添加卡片
+            if (PcGridAdapter.isAddComputerCard(computer)) {
+                continue;
+            }
 
             if (details.equals(computer.details)) {
                 // Disable or delete shortcuts referencing this PC
@@ -962,7 +1022,14 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
                 pcGridAdapter.removeComputer(computer);
                 pcGridAdapter.notifyDataSetChanged();
 
-                if (pcGridAdapter.getCount() == 0) {
+                // 检查是否只剩下添加卡片（使用原始列表）
+                int realCount = 0;
+                for (int j = 0; j < pcGridAdapter.getRawCount(); j++) {
+                    if (!PcGridAdapter.isAddComputerCard(pcGridAdapter.getRawItem(j))) {
+                        realCount++;
+                    }
+                }
+                if (realCount == 0) {
                     // Show the "Discovery in progress" view
                     noPcFoundLayout.setVisibility(View.VISIBLE);
                 }
@@ -972,14 +1039,76 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         }
     }
     
+    /**
+     * 创建并添加"添加电脑"卡片
+     */
+    private void addAddComputerCard() {
+        // 检查是否已经存在添加卡片（使用原始列表，避免过滤问题）
+        for (int i = 0; i < pcGridAdapter.getRawCount(); i++) {
+            ComputerObject computer = pcGridAdapter.getRawItem(i);
+            if (PcGridAdapter.isAddComputerCard(computer)) {
+                // 已经存在，不需要重复添加
+                return;
+            }
+        }
+
+        // 创建添加卡片
+        ComputerDetails addDetails = new ComputerDetails();
+        addDetails.uuid = PcGridAdapter.ADD_COMPUTER_UUID;
+        try {
+            addDetails.name = getString(R.string.title_add_pc);
+        } catch (Exception e) {
+            addDetails.name = "添加电脑";
+        }
+        addDetails.state = ComputerDetails.State.UNKNOWN;
+
+        pcGridAdapter.addComputer(new ComputerObject(addDetails));
+        pcGridAdapter.notifyDataSetChanged();
+
+        // 移除"未找到PC"视图
+        if (noPcFoundLayout != null) {
+            noPcFoundLayout.setVisibility(View.INVISIBLE);
+        }
+    }
+
+    /**
+     * 防抖刷新：合并短时间内的多次刷新请求
+     */
+    private void debouncedNotifyDataSetChanged() {
+        // 取消之前的刷新请求
+        if (pendingRefreshRunnable != null) {
+            refreshHandler.removeCallbacks(pendingRefreshRunnable);
+        }
+
+        // 创建新的刷新请求
+        pendingRefreshRunnable = () -> {
+            pcGridAdapter.notifyDataSetChanged();
+            pendingRefreshRunnable = null;
+        };
+
+        // 延迟执行刷新
+        refreshHandler.postDelayed(pendingRefreshRunnable, REFRESH_DEBOUNCE_DELAY);
+    }
+
     private void updateComputer(ComputerDetails details) {
+        // 忽略添加卡片
+        if (PcGridAdapter.ADD_COMPUTER_UUID.equals(details.uuid)) {
+            return;
+        }
+
         ComputerObject existingEntry = null;
 
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);
+        // 使用原始列表查找，避免过滤导致的重复添加问题
+        for (int i = 0; i < pcGridAdapter.getRawCount(); i++) {
+            ComputerObject computer = pcGridAdapter.getRawItem(i);
+
+            // 跳过添加卡片
+            if (PcGridAdapter.isAddComputerCard(computer)) {
+                continue;
+            }
 
             // Check if this is the same computer
-            if (details.uuid.equals(computer.details.uuid)) {
+            if (details.uuid != null && details.uuid.equals(computer.details.uuid)) {
                 existingEntry = computer;
                 break;
             }
@@ -988,17 +1117,42 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         if (existingEntry != null) {
             // Replace the information in the existing entry
             existingEntry.details = details;
+            // 重新排序，因为状态可能改变（如从未配对变为已配对）
+            pcGridAdapter.resort();
         }
         else {
             // Add a new entry
-            pcGridAdapter.addComputer(new ComputerObject(details));
+            ComputerObject newComputer = new ComputerObject(details);
+            pcGridAdapter.addComputer(newComputer);
+
+            // 检查新添加的设备是否是未配对的
+            boolean isUnpaired = details.state == ComputerDetails.State.ONLINE
+                    && details.pairState == PairingManager.PairState.NOT_PAIRED;
+
+            // 如果当前隐藏了未配对设备，且新设备是未配对的，自动显示未配对设备
+            if (isUnpaired && !pcGridAdapter.isShowUnpairedDevices()) {
+                pcGridAdapter.setShowUnpairedDevices(true);
+
+                // 更新按钮图标
+                ImageButton toggleUnpairedButton = findViewById(R.id.toggleUnpairedButton);
+                if (toggleUnpairedButton != null) {
+                    updateToggleUnpairedButtonIcon(toggleUnpairedButton);
+                }
+
+                // 显示提示信息
+                Toast.makeText(this, getString(R.string.new_unpaired_device_shown), Toast.LENGTH_LONG).show();
+            }
 
             // Remove the "Discovery in progress" view
             noPcFoundLayout.setVisibility(View.INVISIBLE);
+            // 添加新条目时触发动画（但第一次加载时不触发，避免重复）
+            if (pcListView != null && !isFirstLoad) {
+                pcListView.scheduleLayoutAnimation();
+            }
         }
 
-        // Notify the view that the data has changed
-        pcGridAdapter.notifyDataSetChanged();
+        // 使用防抖刷新，避免频繁刷新
+        debouncedNotifyDataSetChanged();
     }
 
     @Override
@@ -1018,9 +1172,46 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         }
         else if (view instanceof AbsListView) {
             AbsListView listView = (AbsListView) view;
+            // 保存引用以便后续触发动画
+            pcListView = listView;
+            // 移除系统默认的选择背景，使用自定义的 selector
+            listView.setSelector(android.R.color.transparent);
             listView.setAdapter(pcGridAdapter);
+
+            // 设置排序动画
+            android.view.animation.Animation animation = AnimationUtils.loadAnimation(this, R.anim.pc_grid_item_sort);
+            LayoutAnimationController controller = new LayoutAnimationController(animation, 0.12f);
+            controller.setOrder(LayoutAnimationController.ORDER_NORMAL);
+            listView.setLayoutAnimation(controller);
+
+            // 第一次进入时，先隐藏列表，然后延迟触发动画
+            if (isFirstLoad) {
+                listView.setAlpha(0f);
+                // 延迟触发动画，等待数据准备完成
+                listView.postDelayed(() -> {
+                    if (isFirstLoad && pcListView != null && pcListView.getAlpha() == 0f) {
+                        // 确保数据已刷新
+                        pcGridAdapter.notifyDataSetChanged();
+                        // 触发动画
+                        pcListView.scheduleLayoutAnimation();
+                        pcListView.animate()
+                                .alpha(1f)
+                                .setDuration(200)
+                                .start();
+                        isFirstLoad = false;
+                    }
+                }, 250); // 延迟250ms，确保数据已准备好
+            }
+
             listView.setOnItemClickListener((arg0, arg1, pos, id) -> {
                 ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(pos);
+
+                if (PcGridAdapter.isAddComputerCard(computer)) {
+                    Intent i = new Intent(PcView.this, AddComputerManually.class);
+                    startActivity(i);
+                    return;
+                }
+
                 if (computer.details.state == ComputerDetails.State.UNKNOWN ||
                     computer.details.state == ComputerDetails.State.OFFLINE) {
                     // Open the context menu if a PC is offline or refreshing
@@ -1037,9 +1228,39 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
                     }
                 }
             });
+
+            // 如果是GridView，动态计算列宽以保持固定间距
+            if (view instanceof GridView) {
+                calculateDynamicColumnWidth((GridView) view);
+            }
+
             UiHelper.applyStatusBarPadding(listView);
             registerForContextMenu(listView);
         }
+    }
+
+    /**
+     * 动态计算GridView的列宽，确保卡片间距保持不变
+     * 根据屏幕宽度和固定间距自动调整列宽
+     */
+    private void calculateDynamicColumnWidth(GridView gridView) {
+        float density = getResources().getDisplayMetrics().density;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+
+        // 获取可用宽度（扣除左右padding）
+        int availableWidth = screenWidth - gridView.getPaddingStart() - gridView.getPaddingEnd();
+
+        // 固定参数（dp转px）
+        int horizontalSpacingPx = (int) (15f * density);
+        int minColumnWidthPx = (int) (180f * density);
+
+        // 计算列数: numColumns = (availableWidth + spacing) / (minWidth + spacing)
+        int numColumns = Math.max(1, (availableWidth + horizontalSpacingPx) / (minColumnWidthPx + horizontalSpacingPx));
+
+        // 计算实际列宽: columnWidth = (availableWidth - (numColumns - 1) * spacing) / numColumns
+        int columnWidth = (availableWidth - (numColumns - 1) * horizontalSpacingPx) / numColumns;
+
+        gridView.setColumnWidth(columnWidth);
     }
 
     public static class ComputerObject {
@@ -1055,6 +1276,76 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         @Override
         public String toString() {
             return details.name;
+        }
+    }
+
+    private void showAboutDialog() {
+        // 创建自定义布局
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
+
+        // 设置版本信息
+        TextView versionText = dialogView.findViewById(R.id.text_version);
+        String versionInfo = getVersionInfo();
+        versionText.setText(versionInfo);
+
+        // 设置应用名称
+        TextView appNameText = dialogView.findViewById(R.id.text_app_name);
+        String appName = getAppName();
+        appNameText.setText(appName);
+
+        // 设置描述信息
+        TextView descriptionText = dialogView.findViewById(R.id.text_description);
+        descriptionText.setText(R.string.about_dialog_description);
+
+        // 创建对话框，使用优雅的样式
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AppDialogStyle);
+        builder.setView(dialogView);
+
+        // 设置按钮
+        builder.setPositiveButton(R.string.about_dialog_github, (dialog, which) -> {
+            // 打开项目仓库
+            openUrl("https://github.com/chenx-dust/moonlight-vminus");
+        });
+
+        builder.setNegativeButton(R.string.about_dialog_close, (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        // 显示对话框
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    @SuppressLint("DefaultLocale")
+    private String getVersionInfo() {
+        try {
+            PackageInfo packageInfo = getPackageManager()
+                    .getPackageInfo(getPackageName(), 0);
+            return String.format("Version %s (Build %d)",
+                    packageInfo.versionName,
+                    packageInfo.versionCode);
+        } catch (PackageManager.NameNotFoundException e) {
+            return "Version Unknown";
+        }
+    }
+
+    private String getAppName() {
+        try {
+            PackageInfo packageInfo = getPackageManager()
+                    .getPackageInfo(getPackageName(), 0);
+            return packageInfo.applicationInfo.loadLabel(getPackageManager()).toString();
+        } catch (PackageManager.NameNotFoundException e) {
+            return "Moonlight V-";
+        }
+    }
+
+    private void openUrl(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            // 如果无法打开链接，忽略错误
         }
     }
 }

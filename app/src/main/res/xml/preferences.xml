@@ -309,6 +309,14 @@
             android:title="@string/title_checkbox_enable_esc_menu"
             android:summary="@string/summary_checkbox_enable_esc_menu"
             android:defaultValue="true" />
+        <ListPreference
+            android:key="list_esc_menu_key"
+            android:dependency="checkbox_enable_esc_menu"
+            android:title="@string/title_list_esc_menu_key"
+            android:summary="@string/summary_list_esc_menu_key"
+            android:entries="@array/esc_menu_key_names"
+            android:entryValues="@array/esc_menu_key_values"
+            android:defaultValue="111" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_enhanced_touch_settings"
         android:key="category_enhanced_touch"
@@ -484,6 +492,17 @@
             android:key="checkbox_small_icon_mode"
             android:title="@string/title_checkbox_small_icon_mode"
             android:summary="@string/summary_checkbox_small_icon_mode" />
+        <EditTextPreference
+            android:key="background_image_url"
+            android:title="@string/title_background_image_api"
+            android:summary="@string/summary_background_image_api"
+            android:dialogTitle="@string/dialog_title_background_image_api"
+            android:dialogMessage="@string/dialog_message_background_image_api"
+            android:defaultValue="" />
+        <com.limelight.preferences.LocalImagePickerPreference
+            android:key="local_image_picker"
+            android:title="@string/title_local_image_picker"
+            android:summary="@string/summary_local_image_picker" />
         <CheckBoxPreference
             android:key="checkbox_enable_analytics"
             android:title="@string/title_enable_analytics"
@@ -520,6 +539,18 @@
             android:entryValues="@array/video_format_values"
             android:summary="@string/summary_video_format"
             android:defaultValue="auto" />
+        <com.limelight.preferences.SeekBarPreference
+            android:key="seekbar_output_buffer_queue_limit"
+            android:dialogMessage="@string/summary_seekbar_output_buffer_queue_limit"
+            seekbar:min="1"
+            android:max="5"
+            seekbar:step="1"
+            seekbar:keyStep="1"
+            seekbar:divisor="1"
+            android:defaultValue="2"
+            android:summary="@string/summary_seekbar_output_buffer_queue_limit"
+            android:text="@string/suffix_seekbar_output_buffer_queue_limit"
+            android:title="@string/title_seekbar_output_buffer_queue_limit" />
         <CheckBoxPreference
             android:key="checkbox_enable_hdr"
             android:title="@string/title_enable_hdr"
@@ -582,9 +613,6 @@
             android:title="@string/title_troubleshooting"
             android:summary="@string/summary_troubleshooting"
             url="https://github.com/moonlight-stream/moonlight-docs/wiki/Troubleshooting"/> -->
-        <com.limelight.preferences.AboutDialogPreference
-            android:title="@string/title_about_mode"
-            android:summary="@string/summary_about_mode" />
         <com.limelight.preferences.WebLauncherPreference
             android:title="@string/title_moonlight_vplus_pc_download"
             url="https://github.com/qiin2333/moonlight-qt"/>

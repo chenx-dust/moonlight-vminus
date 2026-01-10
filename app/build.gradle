@@ -16,11 +16,11 @@ android {
     namespace 'com.limelight'
 
     defaultConfig {
-        minSdk 27
-        targetSdk 36
+        minSdk 22
+        targetSdk 35
 
-        versionName "12.4.7"
-        versionCode = 352
+        versionName "12.6.1"
+        versionCode = 358
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
@@ -111,6 +111,7 @@ android {
             resValue "string", "app_label", "Moonlight V-"
             resValue "string", "app_label_root", "Moonlight V- (Root)"
 
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         release {

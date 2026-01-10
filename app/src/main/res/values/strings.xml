@@ -285,8 +285,10 @@
 
     <string name="title_checkbox_absolute_mouse_mode">Remote desktop mouse mode</string>
     <string name="summary_checkbox_absolute_mouse_mode">This can make mouse acceleration behave more naturally for remote desktop usage, but it is incompatible with many games.</string>
-    <string name="title_checkbox_enable_esc_menu">Allow ESC key to open return menu</string>
-    <string name="summary_checkbox_enable_esc_menu">When enabled, double-pressing ESC key opens the stream return menu, single ESC press is passed through to host</string>
+    <string name="title_checkbox_enable_esc_menu">Allow custom key to open return menu</string>
+    <string name="summary_checkbox_enable_esc_menu">When enabled, double-pressing the selected key opens the stream return menu, single press is passed through to host</string>
+    <string name="title_list_esc_menu_key">Return menu activation key</string>
+    <string name="summary_list_esc_menu_key">Choose which key will open the return menu when double-pressed</string>
     <string name="title_checkbox_mouse_nav_buttons">Enable back and forward mouse buttons</string>
     <string name="summary_checkbox_mouse_nav_buttons">Enabling this option may break right clicking on some buggy devices</string>
 
@@ -399,6 +401,7 @@
     <string name="about_dialog_thanks">Thank you for using Moonlight V-! If you like it, please give us a star on GitHub.</string>
     <string name="about_dialog_github">GitHub</string>
     <string name="about_dialog_star">Star Project</string>
+    <string name="about_dialog_qq">Join QQ Group</string>
     <string name="about_dialog_close">Close</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="summary_check_for_updates">Check if there is a new version available</string>
@@ -437,7 +440,7 @@
     <string name="pacing_balanced_alt">Balanced with FPS limit</string>
     <string name="pacing_smoothness">Prefer smoothest video (may significantly increase latency)</string>
     <string name="pacing_experimental_low_latency">Experimental: Ultra-low latency (advanced)</string>
-    <string name="pacing_surface_flinger_raw">Surface Flinger Raw (GPU Direct)</string>
+    <string name="pacing_precise_sync">Precise Sync</string>
 
     <string name="title_analog_scrolling">Use an analog stick to scroll</string>
     <string name="summary_analog_scrolling">Select an analog stick to scroll when in mouse emulation mode</string>
@@ -573,7 +576,7 @@
     <string name="toast_load_custom_keys_corrupted">Failed to load custom button</string>
 
     <!-- gyro related strings -->
-    <string name="gyro_activation_method">Activation Method</string>
+    <string name="gyro_activation_method">Act Key</string>
     <string name="gyro_invert_x_axis">X Rev</string>
     <string name="gyro_invert_y_axis">Y Rev</string>
     <string name="gyro_sensitivity">Sensitivity</string>
@@ -677,5 +680,13 @@
 
     <string name="game_menu_toggle_remote_mouse">Show/Hide Remote Mouse</string>
     <string name="toast_remote_mouse_toast">Remote mouse displayed/hidden</string>
+
+    <!-- Output Buffer Queue Limit -->
+    <string name="title_seekbar_output_buffer_queue_limit">Output Buffer Queue Limit</string>
+    <string name="summary_seekbar_output_buffer_queue_limit">Controls the maximum number of decoded frames that can be queued before rendering. Lower values reduce latency but may cause frame drops. Higher values improve smoothness but increase latency. Default: 2</string>
+    <string name="suffix_seekbar_output_buffer_queue_limit">frames</string>
+    <string name="unpaired_devices_shown">Unpaired devices shown</string>
+    <string name="unpaired_devices_hidden">Unpaired devices hidden</string>
+    <string name="new_unpaired_device_shown">New unpaired device detected, showing unpaired devices</string>
 
 </resources>

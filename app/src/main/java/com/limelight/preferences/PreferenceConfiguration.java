@@ -138,9 +138,13 @@ public class PreferenceConfiguration {
     private static final String MIC_BITRATE_PREF_STRING = "seekbar_mic_bitrate_kbps";
     private static final String MIC_ICON_COLOR_PREF_STRING = "list_mic_icon_color";
     private static final String ENABLE_ESC_MENU_PREF_STRING = "checkbox_enable_esc_menu";
+    private static final String ESC_MENU_KEY_PREF_STRING = "list_esc_menu_key";
     
     // 控制流only模式设置
     private static final String CONTROL_ONLY_PREF_STRING = "checkbox_control_only";
+
+    // 输出缓冲区队列大小设置
+    private static final String OUTPUT_BUFFER_QUEUE_LIMIT_PREF_STRING = "seekbar_output_buffer_queue_limit";
 
     //wg
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
@@ -209,9 +213,13 @@ public class PreferenceConfiguration {
     private static final int DEFAULT_MIC_BITRATE = 96; // 默认128 kbps
     private static final String DEFAULT_MIC_ICON_COLOR = "solid_white"; // 默认白
     private static final boolean DEFAULT_ENABLE_ESC_MENU = true; // 默认启用ESC菜单
+    private static final int DEFAULT_ESC_MENU_KEY = KeyEvent.KEYCODE_ESCAPE;
     
     // 控制流only模式默认值
     private static final boolean DEFAULT_CONTROL_ONLY = false;
+
+    // 输出缓冲区队列大小默认值
+    private static final int DEFAULT_OUTPUT_BUFFER_QUEUE_LIMIT = 2;
 
     private static final boolean DEFAULT_ENABLE_DOUBLE_CLICK_DRAG = false;
     private static final int DEFAULT_DOUBLE_TAP_TIME_THRESHOLD = 125; // 默认125ms
@@ -225,7 +233,7 @@ public class PreferenceConfiguration {
     public static final int FRAME_PACING_CAP_FPS = 2;
     public static final int FRAME_PACING_MAX_SMOOTHNESS = 3;
     public static final int FRAME_PACING_EXPERIMENTAL_LOW_LATENCY = 4;
-    public static final int FRAME_PACING_SURFACE_FLINGER_RAW = 5;
+    public static final int FRAME_PACING_PRECISE_SYNC = 5;
 
     public static final String RES_360P = "640x360";
     public static final String RES_480P = "854x480";
@@ -355,9 +363,13 @@ public class PreferenceConfiguration {
     
     // ESC菜单设置
     public boolean enableEscMenu;
+    public int escMenuKey;
     
     // 控制流only模式设置
     public boolean controlOnly;
+
+    // 输出缓冲区队列大小
+    public int outputBufferQueueLimit;
 
     public ScreenPosition screenPosition;
     public int screenOffsetX;
@@ -598,8 +610,8 @@ public class PreferenceConfiguration {
         else if (str.equals("experimental-low-latency")) {
             return FRAME_PACING_EXPERIMENTAL_LOW_LATENCY;
         }
-        else if (str.equals("surface-flinger-raw")) {
-            return FRAME_PACING_SURFACE_FLINGER_RAW;
+        else if (str.equals("precise-sync")) {
+            return FRAME_PACING_PRECISE_SYNC;
         }
         else {
             // Should never get here
@@ -862,7 +874,9 @@ public class PreferenceConfiguration {
         // Cards visibility (defaults to true)
         config.showBitrateCard = prefs.getBoolean(SHOW_BITRATE_CARD_PREF_STRING, true);
         config.showGyroCard = prefs.getBoolean(SHOW_GYRO_CARD_PREF_STRING, true);
-        config.showQuickKeyCard = prefs.getBoolean(SHOW_QuickKeyCard, true);
+        // 横屏时快捷卡片默认不开启
+        boolean defaultQuickKeyCard = config.width > config.height ? false : true;
+        config.showQuickKeyCard = prefs.getBoolean(SHOW_QuickKeyCard, defaultQuickKeyCard);
 
         // 读取麦克风设置
         config.enableMic = prefs.getBoolean(ENABLE_MIC_PREF_STRING, DEFAULT_ENABLE_MIC);
@@ -872,8 +886,24 @@ public class PreferenceConfiguration {
         // 读取ESC菜单设置
         config.enableEscMenu = prefs.getBoolean(ENABLE_ESC_MENU_PREF_STRING, DEFAULT_ENABLE_ESC_MENU);
         
+        String escMenuKeyStr = prefs.getString(ESC_MENU_KEY_PREF_STRING, String.valueOf(DEFAULT_ESC_MENU_KEY));
+        try {
+            config.escMenuKey = Integer.parseInt(escMenuKeyStr);
+        } catch (NumberFormatException e) {
+            config.escMenuKey = DEFAULT_ESC_MENU_KEY;
+        }
+        
         // 读取控制流only模式设置
         config.controlOnly = prefs.getBoolean(CONTROL_ONLY_PREF_STRING, DEFAULT_CONTROL_ONLY);
+
+        // 读取输出缓冲区队列大小设置
+        config.outputBufferQueueLimit = prefs.getInt(OUTPUT_BUFFER_QUEUE_LIMIT_PREF_STRING, DEFAULT_OUTPUT_BUFFER_QUEUE_LIMIT);
+        // 确保值在合理范围内 (1-5)
+        if (config.outputBufferQueueLimit < 1) {
+            config.outputBufferQueueLimit = 1;
+        } else if (config.outputBufferQueueLimit > 5) {
+            config.outputBufferQueueLimit = 5;
+        }
 
         config.reverseResolution = prefs.getBoolean(REVERSE_RESOLUTION_PREF_STRING, DEFAULT_REVERSE_RESOLUTION);
         config.rotableScreen = prefs.getBoolean(ROTABLE_SCREEN_PREF_STRING, DEFAULT_ROTABLE_SCREEN);
@@ -1000,6 +1030,7 @@ public class PreferenceConfiguration {
                     .putInt(MIC_BITRATE_PREF_STRING, micBitrate)
                     .putString(MIC_ICON_COLOR_PREF_STRING, micIconColor)
                     .putBoolean(ENABLE_ESC_MENU_PREF_STRING, enableEscMenu)
+                    .putString(ESC_MENU_KEY_PREF_STRING, String.valueOf(escMenuKey))
                     .putBoolean(CONTROL_ONLY_PREF_STRING, controlOnly)
                     .putBoolean(ENABLE_NATIVE_MOUSE_POINTER_PREF_STRING, enableNativeMousePointer)
                     .putBoolean(ENABLE_DOUBLE_CLICK_DRAG_PREF_STRING, enableDoubleClickDrag)
@@ -1041,9 +1072,11 @@ public class PreferenceConfiguration {
         copy.useExternalDisplay = this.useExternalDisplay;
         copy.enableMic = this.enableMic;
         copy.controlOnly = this.controlOnly;
+        copy.outputBufferQueueLimit = this.outputBufferQueueLimit;
         copy.micBitrate = this.micBitrate;
         copy.micIconColor = this.micIconColor;
         copy.enableEscMenu = this.enableEscMenu;
+        copy.escMenuKey = this.escMenuKey;
         copy.enableNativeMousePointer = this.enableNativeMousePointer;
         copy.enableDoubleClickDrag = this.enableDoubleClickDrag;
         copy.enableLocalCursorRendering = this.enableLocalCursorRendering;
