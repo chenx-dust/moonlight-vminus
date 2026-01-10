@@ -4,9 +4,9 @@
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#E6FFE3F2"
-                android:centerColor="#CCFF8FA3"
-                android:endColor="#B3FF6B9D"
+                android:startColor="#E6FDFDFD"
+                android:centerColor="#CCFFFFFF"
+                android:endColor="#B3FFFFFF"
                 android:angle="135" />
             <corners android:radius="12dp"/>
             <stroke android:width="2dp" android:color="#FF3CA4E0"/>
@@ -17,9 +17,9 @@
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#F0FFE3F2"
-                android:centerColor="#D9FF8FA3"
-                android:endColor="#CCFF6B9D"
+                android:startColor="#F0FDFDFD"
+                android:centerColor="#D9FFFFFF"
+                android:endColor="#CCFFFFFF"
                 android:angle="135" />
             <corners android:radius="12dp"/>
         </shape>
@@ -29,9 +29,9 @@
     <item android:state_selected="true">
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#F0FFE3F2"
-                android:centerColor="#D9FF8FA3"
-                android:endColor="#CCFF6B9D"
+                android:startColor="#F0FFFFFF"
+                android:centerColor="#D9FFFFFF"
+                android:endColor="#CCFFFFFF"
                 android:angle="135" />
             <corners android:radius="12dp"/>
         </shape>
@@ -42,7 +42,7 @@
         <shape android:shape="rectangle">
             <gradient
                 android:startColor="#F5FFFFFF"
-                android:centerColor="#E6FFE3F2"
+                android:centerColor="#E6FFFFFF"
                 android:endColor="#CCF8F8F8"
                 android:angle="135" />
             <corners android:radius="12dp"/>

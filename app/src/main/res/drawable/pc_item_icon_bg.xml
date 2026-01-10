@@ -3,9 +3,9 @@
     android:shape="oval">
     <!-- 梦幻渐变背景 - 柔和过渡 -->
     <gradient
-        android:startColor="#60FF6B9D"
-        android:centerColor="#40FF8FA3"
-        android:endColor="#20FFA3C7"
+        android:startColor="#60000000"
+        android:centerColor="#40000000"
+        android:endColor="#20000000"
         android:angle="135"
         android:type="radial"
         android:centerX="0.5"
