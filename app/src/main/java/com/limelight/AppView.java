@@ -432,7 +432,9 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
                 .putStringSet(uuidString, hiddenAppIdStringSet)
                 .apply();
 
-        appGridAdapter.updateHiddenApps(hiddenAppIds, hideImmediately);
+        if (appGridAdapter != null) {
+            appGridAdapter.updateHiddenApps(hiddenAppIds, hideImmediately);
+        }
     }
 
     @SuppressLint("SetTextI18n")
@@ -500,8 +502,10 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     private void handleSelectionChange(int position, AppObject app) {
         selectedPosition = position;
         updateTitle(app.app.getAppName());
-        appGridAdapter.setSelectedPosition(position);
-        appGridAdapter.notifyDataSetChanged();
+        if (appGridAdapter != null) {
+            appGridAdapter.setSelectedPosition(position);
+            appGridAdapter.notifyDataSetChanged();
+        }
 
         // 移动选中框动画
         if (selectionAnimator != null) {
@@ -823,7 +827,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             targetView = info.targetView;
         } else if (v instanceof RecyclerView) {
             // RecyclerView的情况，需要从当前选中的位置获取
-            if (selectedPosition >= 0 && selectedPosition < appGridAdapter.getCount()) {
+            if (appGridAdapter != null && selectedPosition >= 0 && selectedPosition < appGridAdapter.getCount()) {
                 position = selectedPosition;
                 RecyclerView rv = (RecyclerView) v;
                 RecyclerView.ViewHolder viewHolder = rv.findViewHolderForAdapterPosition(selectedPosition);
@@ -835,7 +839,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             position = selectedPosition;
         }
 
-        if (position < 0 || position >= appGridAdapter.getCount()) return;
+        if (position < 0 || appGridAdapter == null || position >= appGridAdapter.getCount()) return;
 
         AppObject selectedApp = (AppObject) appGridAdapter.getItem(position);
 
@@ -902,7 +906,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             position = selectedPosition;
         }
 
-        if (position < 0 || position >= appGridAdapter.getCount()) return false;
+        if (position < 0 || appGridAdapter == null || position >= appGridAdapter.getCount()) return false;
 
         final AppObject app = (AppObject) appGridAdapter.getItem(position);
         switch (item.getItemId()) {

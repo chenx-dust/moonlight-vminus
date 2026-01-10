@@ -1172,7 +1172,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             long timeUntilDeadline = nextVsyncNs - presentationDeadlineNs - currentTime;
             if (timeUntilDeadline < 0) {
                 // 已经错过 deadline，使用 0 让系统尽快渲染
-                LimeLog.warning("错过 presentation deadline，使用立即渲染");
+                // LimeLog.warning("错过 presentation deadline，使用立即渲染");
                 return 0;
             }
         }
@@ -1199,10 +1199,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         surfaceFlingerFrameCount++;
         activeWindowVideoStats.totalFramesRendered++;
 
-        if (surfaceFlingerFrameCount % 100 == 0) {
+        if (surfaceFlingerFrameCount % 12000 == 0) {
             float avgError = surfaceFlingerTimingError / 1000000.0f / surfaceFlingerFrameCount;
-            LimeLog.info(String.format("精确同步: %d帧, 跳帧: %d, 平均误差: %.3fms",
-                    surfaceFlingerFrameCount, surfaceFlingerSkippedFrames, avgError));
+            LimeLog.info(String.format("精确同步: %d帧, 跳帧: %d, 平均误差: %.3fms", surfaceFlingerFrameCount, surfaceFlingerSkippedFrames, avgError));
         }
     }
 
@@ -1443,6 +1442,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 Choreographer.getInstance().removeFrameCallback(MediaCodecDecoderRenderer.this);
             });
         }
+
+        // Unblock any threads waiting on the output buffer queue
+        // We add a dummy value to ensure take() returns if it's blocked
+        outputBufferQueue.add(-1);
     }
 
     @Override
@@ -1493,7 +1496,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public void cleanup() {
-        videoDecoder.release();
+        if (videoDecoder != null) {
+            try {
+                videoDecoder.release();
+            } catch (Exception e) {
+                // Ignore exceptions during shutdown
+                LimeLog.warning("Exception during decoder release: " + e.getMessage());
+            }
+        }
         timestampToEnqueueTime.clear();
     }
 
@@ -1519,6 +1529,35 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             codecRecoveryAttempts = 0;
 
             // Promote None/Flush to Restart and leave Reset alone
+            if (!codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_NONE, CR_RECOVERY_TYPE_RESTART)) {
+                codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_FLUSH, CR_RECOVERY_TYPE_RESTART);
+            }
+        }
+    }
+
+    @Override
+    public void onResolutionChanged(int width, int height) {
+        // Skip if resolution hasn't actually changed
+        if (width == initialWidth && height == initialHeight) {
+            return;
+        }
+        
+        LimeLog.info("Decoder notified of resolution change: " + initialWidth + "x" + initialHeight + " -> " + width + "x" + height);
+        
+        // Check if new resolution exceeds current decoder configuration
+        boolean needsRestart = width > initialWidth || height > initialHeight;
+        
+        // Update tracked resolution
+        initialWidth = width;
+        initialHeight = height;
+        
+        if (needsRestart) {
+            LimeLog.info("New resolution exceeds decoder config, triggering codec restart");
+            
+            // Reset recovery counter since this is an expected restart
+            codecRecoveryAttempts = 0;
+            
+            // Promote to restart: None->Restart or Flush->Restart
             if (!codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_NONE, CR_RECOVERY_TYPE_RESTART)) {
                 codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_FLUSH, CR_RECOVERY_TYPE_RESTART);
             }

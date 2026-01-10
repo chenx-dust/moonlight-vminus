@@ -1581,13 +1581,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             }
         }
 
-        if (prefConfig.stretchVideo || aspectRatioMatch) {
-            // Set the surface to the size of the video
-            streamView.getHolder().setFixedSize(prefConfig.width, prefConfig.height);
-        } else {
-            // Set the surface to scale based on the aspect ratio of the stream
-            streamView.setDesiredAspectRatio((double) prefConfig.width / (double) prefConfig.height);
-        }
+        updateStreamViewSize(prefConfig.width, prefConfig.height, aspectRatioMatch);
 
         // Set the desired refresh rate that will get passed into setFrameRate() later
         desiredRefreshRate = displayRefreshRate;
@@ -3683,8 +3677,10 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 // 通过WindowManager.LayoutParams设置亮度
                 WindowManager.LayoutParams params = getWindow().getAttributes();
                 if (hdrEnabled) {
-                    // 强制高亮度模式
-                    // params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL;
+                    // 根据设置决定是否强制高亮度模式
+                    if (prefConfig != null && prefConfig.enableHdrHighBrightness) {
+                        params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL;
+                    }
                     // 设置窗口标志以支持HDR
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
@@ -3706,6 +3702,114 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     @Override
     public void setMotionEventState(short controllerNumber, byte motionType, short reportRateHz) {
         controllerHandler.handleSetMotionEventState(controllerNumber, motionType, reportRateHz);
+    }
+
+    @Override
+    public void onResolutionChanged(int width, int height) {
+        // 确保输入是偶数
+        final int alignedWidth = width & ~1;
+        final int alignedHeight = height & ~1;
+        
+        // 计算基础分辨率（如果有缩放）
+        final int baseWidth;
+        final int baseHeight;
+        
+        if (prefConfig.resolutionScale != 100) {
+            // 基础分辨率 = 实际分辨率 * 100 / resolutionScale
+            baseWidth = (alignedWidth * 100 / prefConfig.resolutionScale) & ~1;
+            baseHeight = (alignedHeight * 100 / prefConfig.resolutionScale) & ~1;
+            
+            LimeLog.info("Resolution scale conversion: actual=" + alignedWidth + "x" + alignedHeight + 
+                    ", base=" + baseWidth + "x" + baseHeight + ", scale=" + prefConfig.resolutionScale + "%");
+        } else {
+            baseWidth = alignedWidth;
+            baseHeight = alignedHeight;
+        }
+        
+        // 跳过相同分辨率的重复通知
+        if (prefConfig.width == baseWidth && prefConfig.height == baseHeight) {
+            return;
+        }
+
+        LimeLog.info("Resolution changed from " + prefConfig.width + "x" + prefConfig.height + 
+                " to " + baseWidth + "x" + baseHeight + " (actual: " + alignedWidth + "x" + alignedHeight + ")");
+
+        // 更新内存中的串流基础分辨率
+        prefConfig.width = baseWidth;
+        prefConfig.height = baseHeight;
+        
+        // 通知解码器分辨率变更
+        if (connected && decoderRenderer != null) {
+            decoderRenderer.onResolutionChanged(baseWidth, baseHeight);
+        }
+        
+        runOnUiThread(() -> {
+            Toast.makeText(this, getString(R.string.host_resolution_changed, baseWidth, baseHeight), 
+                    Toast.LENGTH_SHORT).show();
+
+            // 根据新的宽高比重新决定横竖屏
+            setPreferredOrientationForCurrentDisplay();
+
+            // rotableScreen 模式下强制切换方向以匹配主机分辨率
+            if (prefConfig.rotableScreen) {
+                setRequestedOrientation(baseWidth > baseHeight 
+                        ? ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE 
+                        : ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
+            }
+
+            // 刷新视频视图的比例/尺寸
+            updateStreamViewSize(baseWidth, baseHeight);
+        });
+    }
+    
+    /**
+     * 设置视频 Surface 的尺寸和缩放模式
+     * 
+     * @param width 视频宽度（像素）
+     * @param height 视频高度（像素）
+     * @param forceFixedSize 是否强制使用固定尺寸（用于 Android M 以下且宽高比匹配的情况）
+     */
+    private void updateStreamViewSize(int width, int height, boolean forceFixedSize) {
+        if (streamView == null) {
+            return;
+        }
+        
+        // 获取屏幕物理尺寸（像素）
+        Point screenSize = new Point();
+        getWindowManager().getDefaultDisplay().getSize(screenSize);
+        
+        // 检查主机分辨率是否超过屏幕物理尺寸
+        boolean exceedsScreenSize = width > screenSize.x || height > screenSize.y;
+        
+        // 决定使用固定尺寸还是按比例缩放：
+        // 1. stretchVideo 开启且不超过屏幕尺寸 -> 固定尺寸
+        // 2. forceFixedSize (Android M 以下且宽高比匹配) -> 固定尺寸
+        // 3. 其他情况 -> 按比例缩放
+        boolean useFixedSize = (prefConfig.stretchVideo && !exceedsScreenSize) || forceFixedSize;
+        
+        if (useFixedSize) {
+            // Surface 固定为视频尺寸
+            streamView.setDesiredAspectRatio(0);
+            streamView.getHolder().setFixedSize(width, height);
+            LimeLog.info("Set fixed surface size: " + width + "x" + height + 
+                    " (screen: " + screenSize.x + "x" + screenSize.y + ")");
+        } else {
+            // 保持比例显示，或分辨率超过屏幕时让系统自动缩放
+            if (exceedsScreenSize) {
+                LimeLog.info("Host resolution " + width + "x" + height + 
+                        " exceeds screen size " + screenSize.x + "x" + screenSize.y + 
+                        ", using aspect ratio scaling");
+            }
+            streamView.setDesiredAspectRatio((double) width / height);
+            streamView.requestLayout();
+        }
+    }
+    
+    /**
+     * 设置视频 Surface 尺寸（默认不强制固定尺寸）
+     */
+    private void updateStreamViewSize(int width, int height) {
+        updateStreamViewSize(width, height, false);
     }
 
     @Override
