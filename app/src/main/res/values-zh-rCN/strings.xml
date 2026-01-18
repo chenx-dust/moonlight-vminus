@@ -16,6 +16,7 @@
     <string name="pcview_menu_send_wol"> 发送 Wake-On-LAN 请求 </string>
     <string name="pcview_menu_delete_pc"> 删除电脑 </string>
     <string name="pcview_menu_details"> 查看详情 </string>
+    <string name="pcview_menu_secondary_screen"> 作为副屏串流（基地适用） </string>
     <string name="pcview_menu_sleep_success"> 已催促主机睡眠 </string>
     <string name="pcview_menu_sleep_fail"> 连接主机睡眠失败 </string>
     <!-- Pair messages -->
@@ -203,6 +204,8 @@
     <string name="summary_checkbox_usb_bind_all"> 强制Moonlight的USB驱动接管所有受支持的Xbox手柄 </string>
     <string name="title_checkbox_mouse_emulation"> 通过手柄模拟鼠标 </string>
     <string name="summary_checkbox_mouse_emulation"> 长按开始键将手柄切换为鼠标模式 </string>
+    <string name="title_checkbox_enable_start_key_menu"> 启用长按开始键菜单 </string>
+    <string name="summary_checkbox_enable_start_key_menu"> 长按开始键将打开游戏菜单 </string>
     <string name="title_checkbox_mouse_nav_buttons"> 启用前进后退鼠标键 </string>
     <string name="summary_checkbox_mouse_nav_buttons"> 在一些支持不佳的设备上启用此项可能会使其右键失效 </string>
 
@@ -472,6 +475,8 @@
     <!-- Reverse resolution -->
     <string name="title_checkbox_reverse_resolution">反转分辨率</string>
     <string name="summary_checkbox_reverse_resolution">交换宽度和高度值，用于特殊显示需求</string>
+    <string name="title_checkbox_rotable_screen">跟随屏幕旋转</string>
+    <string name="summary_checkbox_rotable_screen">启用后，设备旋转时会同步调整显示方向</string>
 
     <!-- Moonlight V+ PC download -->
     <string name="title_moonlight_vplus_pc_download">Moonlight V+ PC版下载</string>

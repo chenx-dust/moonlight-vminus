@@ -1,6 +1,7 @@
 <!-- Portrait orientation only -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/pcViewRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/advance_setting_background"
@@ -17,6 +18,8 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
+        android:clickable="false"
+        android:focusable="false"
         >
 
         <RelativeLayout
@@ -64,10 +67,10 @@
 
     <ImageButton
         android:id="@+id/settingsButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
+        android:layout_width="@dimen/pc_toolbar_button_size"
+        android:layout_height="@dimen/pc_toolbar_button_size"
         android:cropToPadding="false"
-        android:scaleType="fitXY"
+        android:scaleType="fitCenter"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
@@ -77,10 +80,10 @@
 
     <ImageButton
         android:id="@+id/aboutButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
+        android:layout_width="@dimen/pc_toolbar_button_size"
+        android:layout_height="@dimen/pc_toolbar_button_size"
         android:cropToPadding="false"
-        android:scaleType="fitXY"
+        android:scaleType="fitCenter"
         android:layout_alignParentTop="true"
         android:layout_toRightOf="@+id/settingsButton"
         android:layout_toEndOf="@+id/settingsButton"
@@ -90,10 +93,10 @@
     
     <ImageButton
         android:id="@+id/toggleUnpairedButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
+        android:layout_width="@dimen/pc_toolbar_button_size"
+        android:layout_height="@dimen/pc_toolbar_button_size"
         android:cropToPadding="false"
-        android:scaleType="fitXY"
+        android:scaleType="fitCenter"
         android:layout_alignParentTop="true"
         android:layout_toLeftOf="@+id/restoreSessionButton"
         android:src="@drawable/ic_visibility"
@@ -102,10 +105,10 @@
 
     <ImageButton
         android:id="@+id/restoreSessionButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
+        android:layout_width="@dimen/pc_toolbar_button_size"
+        android:layout_height="@dimen/pc_toolbar_button_size"
         android:cropToPadding="false"
-        android:scaleType="fitXY"
+        android:scaleType="fitCenter"
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"

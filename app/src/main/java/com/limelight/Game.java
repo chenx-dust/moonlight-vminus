@@ -8,18 +8,15 @@ import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.advance_setting.ControllerManager;
-import com.limelight.binding.input.advance_setting.TouchController;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
-import com.limelight.binding.input.touch.LocalCursorRenderer;
 import com.limelight.binding.input.touch.NativeTouchContext;
 import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
 import com.limelight.binding.input.virtual_controller.VirtualController;
-import com.limelight.binding.video.CrashListener;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
@@ -49,7 +46,6 @@ import com.limelight.utils.AppCacheManager;
 import com.limelight.utils.AppSettingsManager;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PictureInPictureParams;
 import android.app.Service;
@@ -59,7 +55,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -72,6 +67,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.Rational;
 import android.view.Display;
@@ -95,9 +91,12 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.RequiresApi;
+
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -154,7 +153,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     }
 
     private ControllerManager controllerManager;
-    private List<PerformanceInfoDisplay> performanceInfoDisplays = new ArrayList<>();
+    private final List<PerformanceInfoDisplay> performanceInfoDisplays = new ArrayList<>();
 
     private MicrophoneManager microphoneManager;
 
@@ -214,9 +213,16 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     private WifiManager.WifiLock highPerfWifiLock;
     private WifiManager.WifiLock lowLatencyWifiLock;
-    private Map<Integer, NativeTouchContext.Pointer> nativeTouchPointerMap = new HashMap<>();
+    private final Map<Integer, NativeTouchContext.Pointer> nativeTouchPointerMap = new HashMap<>();
     private String currentHostAddress; // 保存当前连接的IP
     private boolean shouldResumeSession = false;
+    
+    // 记录上次的旋转角度，用于检测旋转变化
+    private int lastRotation = -1;
+    
+    // 标记当前是否是服务端主动旋转导致的客户端方向切换
+    // 如果是，则不应该再通知服务端旋转，避免死循环
+    private boolean isServerInitiatedRotation = false;
 
     public enum BackKeyMenuMode {
         GAME_MENU,     // 游戏菜单模式
@@ -231,13 +237,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         this.currentBackKeyMenu = currentBackKeyMenu;
     }
 
-    public BackKeyMenuMode getCurrentBackKeyMenu() {
-        return currentBackKeyMenu;
-    }
-
-
     private boolean areElementsVisible = true; // 用于追踪显隐状态
-
 
     /**
      * 切换虚拟控制器（虚拟按键）的可见性。
@@ -297,7 +297,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     private boolean connectedToUsbDriverService = false;
     private UsbDriverService.UsbDriverBinder usbDriverBinder;
-    private ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
+    private final ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             UsbDriverService.UsbDriverBinder binder = (UsbDriverService.UsbDriverBinder) iBinder;
@@ -348,6 +348,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     public static final String EXTRA_PC_USEVDD = "usevdd";
     public static final String EXTRA_APP_CMD = "CmdList";
     public static final String EXTRA_DISPLAY_NAME = "DisplayName";
+    public static final String EXTRA_SCREEN_COMBINATION_MODE = "Screen combination mode";
 
     private ExternalDisplayManager externalDisplayManager;
 
@@ -386,7 +387,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // Read the stream preferences
         prefConfig = PreferenceConfiguration.readPreferences(this);
-        tombstonePrefs = Game.this.getSharedPreferences("DecoderTombstone", 0);
+        tombstonePrefs = Game.this.getSharedPreferences("解码器墓碑", 0);
 
         // Initialize app settings manager
         appSettingsManager = new AppSettingsManager(this);
@@ -396,6 +397,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // 检查是否使用上一次设置并应用（不覆盖全局配置）
         applyLastSettingsToCurrentSession();
+        
+        // 检查是否有自定义的屏幕组合模式设置（通过 Intent 传递）
+        int customScreenMode = getIntent().getIntExtra(EXTRA_SCREEN_COMBINATION_MODE, -1);
+        if (customScreenMode != -1) {
+            prefConfig.screenCombinationMode = customScreenMode;
+        }
 
         // Set flat region size for long press jitter elimination.
         NativeTouchContext.INTIAL_ZONE_PIXELS = prefConfig.longPressflatRegionPixels;
@@ -442,12 +449,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // 2. 手动强制执行一次
         // 使用 post 确保在 UI 绘制队列的下一个节拍执行，此时 View 的宽/高已经计算好了
-        streamView.post(new Runnable() {
-            @Override
-            public void run() {
-                syncCursorWithStream();
-            }
-        });
+        streamView.post(this::syncCursorWithStream);
 
         // Listen for touch events on the background touch view to enable trackpad mode
         // to work on areas outside of the StreamView itself. We use a separate View
@@ -488,12 +490,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            streamView.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
-                @Override
-                public boolean onCapturedPointer(View view, MotionEvent motionEvent) {
-                    return handleMotionEvent(view, motionEvent);
-                }
-            });
+            streamView.setOnCapturedPointerListener(this::handleMotionEvent);
         }
 
         // Warn the user if they're on a metered connection
@@ -762,15 +759,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             decoderRenderer = new MediaCodecDecoderRenderer(
                     this,
                     prefConfig,
-                    new CrashListener() {
-                        @Override
-                        public void notifyCrash(Exception e) {
-                            // The MediaCodec instance is going down due to a crash
-                            // let's tell the user something when they open the app again
-                            // We must use commit because the app will crash when we return from this function
-                            tombstonePrefs.edit().putInt("CrashCount", tombstonePrefs.getInt("CrashCount", 0) + 1).commit();
-                            reportedCrash = true;
-                        }
+                    e -> {
+                        // The MediaCodec instance is going down due to a crash
+                        // let's tell the user something when they open the app again
+                        // We must use commit because the app will crash when we return from this function
+                        tombstonePrefs.edit().putInt("CrashCount", tombstonePrefs.getInt("CrashCount", 0) + 1).commit();
+                        reportedCrash = true;
                     },
                     tombstonePrefs.getInt("CrashCount", 0),
                     connMgr.isActiveNetworkMetered(),
@@ -912,6 +906,15 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         });
         // 重置状态变量
         requestedNotificationOverlayVisibility = View.GONE;
+        
+        // 重置旋转状态，以便重新检测初始方向
+        lastRotation = -1;
+        isServerInitiatedRotation = false;
+        // 取消所有待处理的旋转任务
+        if (pendingRotationRunnable != null) {
+            rotationHandler.removeCallbacks(pendingRotationRunnable);
+            pendingRotationRunnable = null;
+        }
 
         // 2. 获取 Intent 参数
         String host = Game.this.getIntent().getStringExtra(EXTRA_HOST);
@@ -958,7 +961,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         controllerHandler = new ControllerHandler(this, conn, this, prefConfig);
 
         // 重新创建 ControllerHandler
-        if (controllerHandler != null) controllerHandler.stop();
+        controllerHandler.stop();
         controllerHandler = new ControllerHandler(this, conn, this, prefConfig);
 
         //  重新绑定 USB 驱动服务
@@ -1183,7 +1186,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         super.onConfigurationChanged(newConfig);
 
         // Set requested orientation for possible new screen size
-        setPreferredOrientationForCurrentDisplay();
+        // 但如果当前旋转是由服务端主动旋转导致的，则跳过，避免覆盖我们设置的方向
+        if (!isServerInitiatedRotation) {
+            setPreferredOrientationForCurrentDisplay();
+        } else {
+            LimeLog.info("onConfigurationChanged: skipping setPreferredOrientationForCurrentDisplay due to server-initiated rotation");
+        }
 
         if (virtualController != null) {
             // Refresh layout of OSC for possible new screen size
@@ -1258,9 +1266,102 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // Re-apply display position
         refreshDisplayPosition();
+        
+        // 检测旋转变化并通知服务端（仅在自动旋转模式下）
+        // 但如果当前旋转是由服务端主动旋转导致的，则不应该再通知服务端，避免死循环
+        if (prefConfig.rotableScreen && conn != null && !isServerInitiatedRotation) {
+            handleRotationChange();
+        } else if (isServerInitiatedRotation) {
+            LimeLog.info("onConfigurationChanged: rotation is server-initiated, skipping notification to server");
+            // 重置标志，因为方向切换已经完成
+            isServerInitiatedRotation = false;
+        }
     }
 
-    @TargetApi(Build.VERSION_CODES.O)
+    private void checkAndSyncOrientation(int width, int height) {
+        Display display = externalDisplayManager != null ?
+                externalDisplayManager.getTargetDisplay() : getWindowManager().getDefaultDisplay();
+        if (display == null) {
+            LimeLog.warning("checkAndSyncOrientation: display is null");
+            return;
+        }
+        
+        android.graphics.Point size = new android.graphics.Point();
+        display.getRealSize(size);
+        
+        boolean clientIsLandscape = size.x > size.y;
+        boolean serverIsLandscape = width > height;
+        
+        LimeLog.info("checkAndSyncOrientation: client=" + size.x + "x" + size.y + 
+                " (" + (clientIsLandscape ? "landscape" : "portrait") + ")" +
+                ", server=" + width + "x" + height + 
+                " (" + (serverIsLandscape ? "landscape" : "portrait") + ")");
+        
+        if (clientIsLandscape != serverIsLandscape) {
+            LimeLog.info("checkAndSyncOrientation: mismatch detected, notifying server");
+            handleRotationChange();
+        } else {
+            LimeLog.info("checkAndSyncOrientation: orientation matches");
+            if (lastRotation == -1) {
+                lastRotation = clientIsLandscape ? 1 : 0;
+            }
+        }
+    }
+    
+    /**
+     * 处理旋转变化，通知服务端同步修改分辨率
+     */
+    private final Handler rotationHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingRotationRunnable = null;
+    private static final long ROTATION_DEBOUNCE_MS = 3000;
+    
+    private void handleRotationChange() {
+        int orientation = getResources().getConfiguration().orientation;
+        boolean isLandscape = (orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE);
+        int currentOrientation = isLandscape ? 1 : 0;
+        
+        LimeLog.info("处理旋转变化：isLandscape=" + isLandscape + ", 最后旋转=" + lastRotation);
+        
+        if (conn == null || !connected) {
+            LimeLog.warning("handleRotationChange：连接未准备好");
+            return;
+        }
+        
+        if (lastRotation == -1) {
+            lastRotation = currentOrientation;
+            LimeLog.info("handleRotationChange：第一次调用，orientation=" + currentOrientation);
+        } else if (currentOrientation == lastRotation) {
+            return;
+        } else {
+            lastRotation = currentOrientation;
+        }
+        
+        int angle = isLandscape ? 0 : 90;
+        
+        if (pendingRotationRunnable != null) {
+            rotationHandler.removeCallbacks(pendingRotationRunnable);
+        }
+        
+        pendingRotationRunnable = () -> {
+            LimeLog.info("handleRotationChange：通知服务器，angle=" + angle);
+            conn.rotateDisplay(angle, new NvConnection.DisplayRotationCallback() {
+                @Override
+                public void onSuccess(int angle) {
+                    LimeLog.info("显示旋转至 " + angle + " 度数");
+                }
+
+                @Override
+                public void onFailure(String errorMessage) {
+                    LimeLog.warning("无法旋转显示： " + errorMessage);
+                }
+            });
+            pendingRotationRunnable = null;
+        };
+        
+        rotationHandler.postDelayed(pendingRotationRunnable, ROTATION_DEBOUNCE_MS);
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
     private PictureInPictureParams getPictureInPictureParams(boolean autoEnter) {
         PictureInPictureParams.Builder builder =
                 new PictureInPictureParams.Builder()
@@ -1364,7 +1465,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     }
 
     @Override
-    @TargetApi(Build.VERSION_CODES.R)
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     public boolean onPictureInPictureRequested() {
         // Enter PiP when requested unless we're on Android 12 which supports auto-enter.
         if (autoEnterPip && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -1601,27 +1702,24 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     }
 
     @SuppressLint("InlinedApi")
-    private final Runnable hideSystemUi = new Runnable() {
-        @Override
-        public void run() {
-            // TODO: Do we want to use WindowInsetsController here on R+ instead of
-            // SYSTEM_UI_FLAG_IMMERSIVE_STICKY? They seem to do the same thing as of S...
+    private final Runnable hideSystemUi = () -> {
+        // TODO: Do we want to use WindowInsetsController here on R+ instead of
+        // SYSTEM_UI_FLAG_IMMERSIVE_STICKY? They seem to do the same thing as of S...
 
-            // In multi-window mode on N+, we need to drop our layout flags or we'll
-            // be drawing underneath the system UI.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode()) {
-                Game.this.getWindow().getDecorView().setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-            } else {
-                // Use immersive mode
-                Game.this.getWindow().getDecorView().setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                                View.SYSTEM_UI_FLAG_FULLSCREEN |
-                                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-            }
+        // In multi-window mode on N+, we need to drop our layout flags or we'll
+        // be drawing underneath the system UI.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode()) {
+            Game.this.getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        } else {
+            // Use immersive mode
+            Game.this.getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
     };
 
@@ -1634,7 +1732,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     }
 
     @Override
-    @TargetApi(Build.VERSION_CODES.N)
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.N)
     public void onMultiWindowModeChanged(boolean isInMultiWindowMode) {
         super.onMultiWindowModeChanged(isInMultiWindowMode);
 
@@ -1840,12 +1938,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         grabbedInput = grab;
     }
 
-    private final Runnable toggleGrab = new Runnable() {
-        @Override
-        public void run() {
-            setInputGrabState(!grabbedInput);
-        }
-    };
+    private final Runnable toggleGrab = () -> setInputGrabState(!grabbedInput);
 
     // Returns true if the key stroke was consumed
     private boolean handleSpecialKeys(int androidKeyCode, boolean down) {
@@ -2207,10 +2300,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         } else {
             return null;
         }
-    }
-
-    public TouchContext[] getTouchContextMap() {
-        return touchContextMap;
     }
 
     public RelativeTouchContext[] getRelativeTouchContextMap() {
@@ -2774,9 +2863,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         }
 
         if ((eventSource & InputDevice.SOURCE_CLASS_JOYSTICK) != 0) { //手柄所属条件
-            if (controllerHandler.handleMotionEvent(event)) {
-                return true;
-            }
+            return controllerHandler.handleMotionEvent(event);
         } else if ((deviceSources & InputDevice.SOURCE_CLASS_JOYSTICK) != 0 && controllerHandler.tryHandleTouchpadEvent(event)) {
             return true;
         } else if ((eventSource & InputDevice.SOURCE_CLASS_POINTER) != 0 ||
@@ -3155,7 +3242,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
         return handleMotionEvent(null, event) || super.onGenericMotionEvent(event);
-
     }
 
     private void updateMousePosition(View touchedView, MotionEvent event) {
@@ -3252,7 +3338,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             //
             // NB: This is still needed even when we call the newer requestUnbufferedDispatch()!
             // Add a configuration to allow view.requestUnbufferedDispatch to be disabled.
-            if (!prefConfig.syncTouchEventWithDisplay) {
+            // requestUnbufferedDispatch(MotionEvent) requires API 30 (Android 11)
+            if (!prefConfig.syncTouchEventWithDisplay && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 view.requestUnbufferedDispatch(event);
             }
         }
@@ -3261,12 +3348,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void stageStarting(final String stage) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (progressOverlay != null) {
-                    progressOverlay.setMessage(getResources().getString(R.string.conn_starting) + " " + stage);
-                }
+        runOnUiThread(() -> {
+            if (progressOverlay != null) {
+                progressOverlay.setMessage(getResources().getString(R.string.conn_starting) + " " + stage);
             }
         });
     }
@@ -3326,36 +3410,33 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         // This does network I/O, so don't do it on the main thread.
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443, portFlags);
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (progressOverlay != null) {
-                    progressOverlay.dismiss();
-                    progressOverlay = null;
+        runOnUiThread(() -> {
+            if (progressOverlay != null) {
+                progressOverlay.dismiss();
+                progressOverlay = null;
+            }
+
+            if (!displayedFailureDialog) {
+                displayedFailureDialog = true;
+                LimeLog.severe(stage + " failed: " + errorCode);
+
+                // If video initialization failed and the surface is still valid, display extra information for the user
+                if (stage.contains("video") && streamView.getHolder().getSurface().isValid()) {
+                    Toast.makeText(Game.this, getResources().getText(R.string.video_decoder_init_failed), Toast.LENGTH_LONG).show();
                 }
 
-                if (!displayedFailureDialog) {
-                    displayedFailureDialog = true;
-                    LimeLog.severe(stage + " failed: " + errorCode);
+                String dialogText = getResources().getString(R.string.conn_error_msg) + " " + stage + " (error " + errorCode + ")";
 
-                    // If video initialization failed and the surface is still valid, display extra information for the user
-                    if (stage.contains("video") && streamView.getHolder().getSurface().isValid()) {
-                        Toast.makeText(Game.this, getResources().getText(R.string.video_decoder_init_failed), Toast.LENGTH_LONG).show();
-                    }
-
-                    String dialogText = getResources().getString(R.string.conn_error_msg) + " " + stage + " (error " + errorCode + ")";
-
-                    if (portFlags != 0) {
-                        dialogText += "\n\n" + getResources().getString(R.string.check_ports_msg) + "\n" +
-                                MoonBridge.stringifyPortFlags(portFlags, "\n");
-                    }
-
-                    if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
-                        dialogText += "\n\n" + getResources().getString(R.string.nettest_text_blocked);
-                    }
-
-                    Dialog.displayDialog(Game.this, getResources().getString(R.string.conn_error_title), dialogText, true);
+                if (portFlags != 0) {
+                    dialogText += "\n\n" + getResources().getString(R.string.check_ports_msg) + "\n" +
+                            MoonBridge.stringifyPortFlags(portFlags, "\n");
                 }
+
+                if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
+                    dialogText += "\n\n" + getResources().getString(R.string.nettest_text_blocked);
+                }
+
+                Dialog.displayDialog(Game.this, getResources().getString(R.string.conn_error_title), dialogText, true);
             }
         });
     }
@@ -3367,76 +3448,73 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         final int portFlags = MoonBridge.getPortFlagsFromTerminationErrorCode(errorCode);
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443, portFlags);
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                // Let the display go to sleep now
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        runOnUiThread(() -> {
+            // Let the display go to sleep now
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-                // Stop processing controller input
-                controllerHandler.stop();
+            // Stop processing controller input
+            controllerHandler.stop();
 
-                microphoneManager.stopMicrophoneStream();
+            microphoneManager.stopMicrophoneStream();
 
-                // Ungrab input
-                setInputGrabState(false);
+            // Ungrab input
+            setInputGrabState(false);
 
-                if (!displayedFailureDialog) {
-                    displayedFailureDialog = true;
-                    LimeLog.severe("Connection terminated: " + errorCode);
-                    stopConnection();
+            if (!displayedFailureDialog) {
+                displayedFailureDialog = true;
+                LimeLog.severe("Connection terminated: " + errorCode);
+                stopConnection();
 
-                    // Display the error dialog if it was an unexpected termination.
-                    // Otherwise, just finish the activity immediately.
-                    if (errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION) {
-                        String message;
+                // Display the error dialog if it was an unexpected termination.
+                // Otherwise, just finish the activity immediately.
+                if (errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION) {
+                    String message;
 
-                        if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
-                            // If we got a blocked result, that supersedes any other error message
-                            message = getResources().getString(R.string.nettest_text_blocked);
-                        } else {
-                            switch (errorCode) {
-                                case MoonBridge.ML_ERROR_NO_VIDEO_TRAFFIC:
-                                    message = getResources().getString(R.string.no_video_received_error);
-                                    break;
-
-                                case MoonBridge.ML_ERROR_NO_VIDEO_FRAME:
-                                    message = getResources().getString(R.string.no_frame_received_error);
-                                    break;
-
-                                case MoonBridge.ML_ERROR_UNEXPECTED_EARLY_TERMINATION:
-                                case MoonBridge.ML_ERROR_PROTECTED_CONTENT:
-                                    message = getResources().getString(R.string.early_termination_error);
-                                    break;
-
-                                case MoonBridge.ML_ERROR_FRAME_CONVERSION:
-                                    message = getResources().getString(R.string.frame_conversion_error);
-                                    break;
-
-                                default:
-                                    String errorCodeString;
-                                    // We'll assume large errors are hex values
-                                    if (Math.abs(errorCode) > 1000) {
-                                        errorCodeString = Integer.toHexString(errorCode);
-                                    } else {
-                                        errorCodeString = Integer.toString(errorCode);
-                                    }
-                                    message = getResources().getString(R.string.conn_terminated_msg) + "\n\n" +
-                                            getResources().getString(R.string.error_code_prefix) + " " + errorCodeString;
-                                    break;
-                            }
-                        }
-
-                        if (portFlags != 0) {
-                            message += "\n\n" + getResources().getString(R.string.check_ports_msg) + "\n" +
-                                    MoonBridge.stringifyPortFlags(portFlags, "\n");
-                        }
-
-                        Dialog.displayDialog(Game.this, getResources().getString(R.string.conn_terminated_title),
-                                message, true);
+                    if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
+                        // If we got a blocked result, that supersedes any other error message
+                        message = getResources().getString(R.string.nettest_text_blocked);
                     } else {
-                        finish();
+                        switch (errorCode) {
+                            case MoonBridge.ML_ERROR_NO_VIDEO_TRAFFIC:
+                                message = getResources().getString(R.string.no_video_received_error);
+                                break;
+
+                            case MoonBridge.ML_ERROR_NO_VIDEO_FRAME:
+                                message = getResources().getString(R.string.no_frame_received_error);
+                                break;
+
+                            case MoonBridge.ML_ERROR_UNEXPECTED_EARLY_TERMINATION:
+                            case MoonBridge.ML_ERROR_PROTECTED_CONTENT:
+                                message = getResources().getString(R.string.early_termination_error);
+                                break;
+
+                            case MoonBridge.ML_ERROR_FRAME_CONVERSION:
+                                message = getResources().getString(R.string.frame_conversion_error);
+                                break;
+
+                            default:
+                                String errorCodeString;
+                                // We'll assume large errors are hex values
+                                if (Math.abs(errorCode) > 1000) {
+                                    errorCodeString = Integer.toHexString(errorCode);
+                                } else {
+                                    errorCodeString = Integer.toString(errorCode);
+                                }
+                                message = getResources().getString(R.string.conn_terminated_msg) + "\n\n" +
+                                        getResources().getString(R.string.error_code_prefix) + " " + errorCodeString;
+                                break;
+                        }
                     }
+
+                    if (portFlags != 0) {
+                        message += "\n\n" + getResources().getString(R.string.check_ports_msg) + "\n" +
+                                MoonBridge.stringifyPortFlags(portFlags, "\n");
+                    }
+
+                    Dialog.displayDialog(Game.this, getResources().getString(R.string.conn_terminated_title),
+                            message, true);
+                } else {
+                    finish();
                 }
             }
         });
@@ -3444,33 +3522,30 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionStatusUpdate(final int connectionStatus) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (prefConfig.disableWarnings) {
-                    return;
+        runOnUiThread(() -> {
+            if (prefConfig.disableWarnings) {
+                return;
+            }
+
+            if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
+                String message;
+                if (prefConfig.bitrate > 5000) {
+                    message = getResources().getString(R.string.slow_connection_msg);
+                } else {
+                    message = getResources().getString(R.string.poor_connection_msg);
                 }
 
-                if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
-                    String message;
-                    if (prefConfig.bitrate > 5000) {
-                        message = getResources().getString(R.string.slow_connection_msg);
-                    } else {
-                        message = getResources().getString(R.string.poor_connection_msg);
-                    }
+                updateNotificationOverlay(connectionStatus, message);
+                requestedNotificationOverlayVisibility = View.VISIBLE;
+            } else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
+                requestedNotificationOverlayVisibility = View.GONE;
+            }
 
-                    updateNotificationOverlay(connectionStatus, message);
-                    requestedNotificationOverlayVisibility = View.VISIBLE;
-                } else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
-                    requestedNotificationOverlayVisibility = View.GONE;
-                }
-
-                if (!isHidingOverlays) {
-                    if (requestedNotificationOverlayVisibility == View.VISIBLE) {
-                        notificationOverlayView.setVisibility(View.VISIBLE);
-                    } else {
-                        notificationOverlayView.setVisibility(View.GONE);
-                    }
+            if (!isHidingOverlays) {
+                if (requestedNotificationOverlayVisibility == View.VISIBLE) {
+                    notificationOverlayView.setVisibility(View.VISIBLE);
+                } else {
+                    notificationOverlayView.setVisibility(View.GONE);
                 }
             }
         });
@@ -3478,44 +3553,38 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionStarted() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (progressOverlay != null) {
-                    progressOverlay.dismiss();
-                    progressOverlay = null;
-                }
-
-                connected = true;
-                connecting = false;
-                updatePipAutoEnter();
-
-                // Hide the mouse cursor now after a short delay.
-                // Doing it before dismissing the spinner seems to be undone
-                // when the spinner gets displayed. On Android Q, even now
-                // is too early to capture. We will delay a second to allow
-                // the spinner to dismiss before capturing.
-                Handler h = new Handler();
-                h.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        // 根据配置决定是否启用原生鼠标指针
-                        if (prefConfig.enableNativeMousePointer) {
-                            enableNativeMousePointer(true);
-                        } else {
-                            setInputGrabState(true);
-                        }
-                    }
-                }, 500);
-
-                // Keep the display on
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-                // Update GameManager state to indicate we're in game
-                UiHelper.notifyStreamConnected(Game.this);
-
-                hideSystemUi(1000);
+        runOnUiThread(() -> {
+            if (progressOverlay != null) {
+                progressOverlay.dismiss();
+                progressOverlay = null;
             }
+
+            connected = true;
+            connecting = false;
+            updatePipAutoEnter();
+
+            // Hide the mouse cursor now after a short delay.
+            // Doing it before dismissing the spinner seems to be undone
+            // when the spinner gets displayed. On Android Q, even now
+            // is too early to capture. We will delay a second to allow
+            // the spinner to dismiss before capturing.
+            Handler h = new Handler();
+            h.postDelayed(() -> {
+                // 根据配置决定是否启用原生鼠标指针
+                if (prefConfig.enableNativeMousePointer) {
+                    enableNativeMousePointer(true);
+                } else {
+                    setInputGrabState(true);
+                }
+            }, 500);
+
+            // Keep the display on
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+            // Update GameManager state to indicate we're in game
+            UiHelper.notifyStreamConnected(Game.this);
+
+            hideSystemUi(1000);
         });
 
         // Report this shortcut being used (off the main thread to prevent ANRs)
@@ -3614,23 +3683,13 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void displayMessage(final String message) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(Game.this, message, Toast.LENGTH_LONG).show();
-            }
-        });
+        runOnUiThread(() -> Toast.makeText(Game.this, message, Toast.LENGTH_LONG).show());
     }
 
     @Override
     public void displayTransientMessage(final String message) {
         if (!prefConfig.disableWarnings) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(Game.this, message, Toast.LENGTH_LONG).show();
-                }
-            });
+            runOnUiThread(() -> Toast.makeText(Game.this, message, Toast.LENGTH_LONG).show());
         }
     }
 
@@ -3715,15 +3774,19 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         final int baseHeight;
         
         if (prefConfig.resolutionScale != 100) {
-            // 基础分辨率 = 实际分辨率 * 100 / resolutionScale
             baseWidth = (alignedWidth * 100 / prefConfig.resolutionScale) & ~1;
             baseHeight = (alignedHeight * 100 / prefConfig.resolutionScale) & ~1;
-            
             LimeLog.info("Resolution scale conversion: actual=" + alignedWidth + "x" + alignedHeight + 
                     ", base=" + baseWidth + "x" + baseHeight + ", scale=" + prefConfig.resolutionScale + "%");
         } else {
             baseWidth = alignedWidth;
             baseHeight = alignedHeight;
+        }
+
+        // 首次收到分辨率时，检查并同步方向（仅在 rotableScreen 模式下）
+        if (prefConfig.rotableScreen && lastRotation == -1 && connected && conn != null) {
+            LimeLog.info("onResolutionChanged: First resolution received, checking orientation " + baseWidth + "x" + baseHeight);
+            checkAndSyncOrientation(baseWidth, baseHeight);
         }
         
         // 跳过相同分辨率的重复通知
@@ -3731,8 +3794,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
 
-        LimeLog.info("Resolution changed from " + prefConfig.width + "x" + prefConfig.height + 
-                " to " + baseWidth + "x" + baseHeight + " (actual: " + alignedWidth + "x" + alignedHeight + ")");
+        LimeLog.info("Resolution changed: " + prefConfig.width + "x" + prefConfig.height + 
+                " -> " + baseWidth + "x" + baseHeight);
 
         // 更新内存中的串流基础分辨率
         prefConfig.width = baseWidth;
@@ -3743,21 +3806,23 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             decoderRenderer.onResolutionChanged(baseWidth, baseHeight);
         }
         
+        final boolean isLandscape = baseWidth > baseHeight;
+        
         runOnUiThread(() -> {
             Toast.makeText(this, getString(R.string.host_resolution_changed, baseWidth, baseHeight), 
                     Toast.LENGTH_SHORT).show();
 
-            // 根据新的宽高比重新决定横竖屏
-            setPreferredOrientationForCurrentDisplay();
-
             // rotableScreen 模式下强制切换方向以匹配主机分辨率
             if (prefConfig.rotableScreen) {
-                setRequestedOrientation(baseWidth > baseHeight 
+                isServerInitiatedRotation = true;
+                setRequestedOrientation(isLandscape 
                         ? ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE 
                         : ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
+                rotationHandler.postDelayed(() -> isServerInitiatedRotation = false, 1000);
+            } else {
+                setPreferredOrientationForCurrentDisplay();
             }
 
-            // 刷新视频视图的比例/尺寸
             updateStreamViewSize(baseWidth, baseHeight);
         });
     }
@@ -3774,9 +3839,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
         
-        // 获取屏幕物理尺寸（像素）
+        // 获取屏幕真实物理尺寸（像素），使用 getRealSize 而不是 getSize
+        // getSize 返回的是可用区域（去掉了状态栏和导航栏），getRealSize 返回真实屏幕尺寸
+        Display display = externalDisplayManager != null ?
+                externalDisplayManager.getTargetDisplay() : getWindowManager().getDefaultDisplay();
         Point screenSize = new Point();
-        getWindowManager().getDefaultDisplay().getSize(screenSize);
+        display.getRealSize(screenSize);
         
         // 检查主机分辨率是否超过屏幕物理尺寸
         boolean exceedsScreenSize = width > screenSize.x || height > screenSize.y;
@@ -3800,6 +3868,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         " exceeds screen size " + screenSize.x + "x" + screenSize.y + 
                         ", using aspect ratio scaling");
             }
+            // 清除之前的固定尺寸设置，确保宽高比缩放正常工作
+            streamView.getHolder().setSizeFromLayout();
             streamView.setDesiredAspectRatio((double) width / height);
             streamView.requestLayout();
         }
@@ -3907,20 +3977,18 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
 
-        if (relativeTouchContextMap != null) {
-            for (TouchContext context : relativeTouchContextMap) {
-                if (context instanceof RelativeTouchContext) {
-                    RelativeTouchContext relativeContext = (RelativeTouchContext) context;
-                    relativeContext.initializeLocalCursorRenderer(cursorOverlay, width, height);
-                    // 1. 开关必须开启
-                    // 2. 必须处于触控板模式 (touchscreenTrackpad == true)
-                    // 3. 必须没开启原生鼠标 (防止冲突)
-                    boolean shouldShow = prefConfig.enableLocalCursorRendering
-                            && prefConfig.touchscreenTrackpad
-                            && !prefConfig.enableNativeMousePointer;
+        for (TouchContext context : relativeTouchContextMap) {
+            if (context instanceof RelativeTouchContext) {
+                RelativeTouchContext relativeContext = (RelativeTouchContext) context;
+                relativeContext.initializeLocalCursorRenderer(cursorOverlay, width, height);
+                // 1. 开关必须开启
+                // 2. 必须处于触控板模式 (touchscreenTrackpad == true)
+                // 3. 必须没开启原生鼠标 (防止冲突)
+                boolean shouldShow = prefConfig.enableLocalCursorRendering
+                        && prefConfig.touchscreenTrackpad
+                        && !prefConfig.enableNativeMousePointer;
 
-                    relativeContext.setEnableLocalCursorRendering(shouldShow);
-                }
+                relativeContext.setEnableLocalCursorRendering(shouldShow);
             }
         }
     }
@@ -3930,12 +3998,10 @@ public class Game extends Activity implements SurfaceHolder.Callback,
      * 清理所有相对触摸上下文的光标渲染器
      */
     private void destroyLocalCursorRenderers() {
-        if (relativeTouchContextMap != null) {
-            for (TouchContext context : relativeTouchContextMap) {
-                if (context instanceof RelativeTouchContext) {
-                    RelativeTouchContext relativeContext = (RelativeTouchContext) context;
-                    relativeContext.destroyLocalCursorRenderer();
-                }
+        for (TouchContext context : relativeTouchContextMap) {
+            if (context instanceof RelativeTouchContext) {
+                RelativeTouchContext relativeContext = (RelativeTouchContext) context;
+                relativeContext.destroyLocalCursorRenderer();
             }
         }
     }
@@ -3943,11 +4009,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     public void refreshLocalCursorState(boolean enabled) {
         boolean shouldRender = enabled && !prefConfig.enableNativeMousePointer;
 
-        if (relativeTouchContextMap != null) {
-            for (TouchContext context : relativeTouchContextMap) {
-                if (context instanceof RelativeTouchContext) {
-                    ((RelativeTouchContext) context).setEnableLocalCursorRendering(shouldRender);
-                }
+        for (TouchContext context : relativeTouchContextMap) {
+            if (context instanceof RelativeTouchContext) {
+                ((RelativeTouchContext) context).setEnableLocalCursorRendering(shouldRender);
             }
         }
         updateCursorServiceState(enabled);
@@ -3995,15 +4059,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         cursorOverlay.setY(y);
 
         // 4. 同步渲染器边界
-        if (relativeTouchContextMap != null) {
-            initializeLocalCursorRenderers(w, h);
-        }
+        initializeLocalCursorRenderers(w, h);
 
         LimeLog.info("CursorFix:" + "Sync executed: W=" + w + " H=" + h + " X=" + x);
     }
 
-    // UDP 相关变量
-    private Thread cursorNetworkThread;
     private boolean isCursorNetworking = false;
     private java.net.DatagramSocket cursorSocket;
     private static final int CURSOR_PORT = 5005;
@@ -4011,7 +4071,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private String computerIpAddress;
 
 
-    private android.util.LruCache<Long, android.graphics.Bitmap> cursorCache = new android.util.LruCache<>(100);
+    private final android.util.LruCache<Long, android.graphics.Bitmap> cursorCache = new android.util.LruCache<>(100);
 
     private void startCursorService(String hostIp) {
         if (isCursorNetworking) return;
@@ -4019,18 +4079,41 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         this.isCursorNetworking = true;
 
         // 每次启动服务时清空缓存，防止上次残留的数据导致错乱
-        if (cursorCache != null) {
-            cursorCache.evictAll();
-        }
+        cursorCache.evictAll();
 
-        cursorNetworkThread = new Thread(() -> {
+        // 1. 初始化 Socket
+        // 1秒超时
+        // 增大缓冲区，防止 4K 屏大光标被截断
+        // 初始化为当前时间，避免刚启动就触发超时重置
+        // 发送握手包 (每2秒一次)
+        // 接收数据
+        // 重置 packet 长度
+        // 阻塞接收
+        // 只有成功接收到数据后，才更新时间！
+        // 最小包长检测
+        // 0=全量, 1=缓存
+        // CRC32
+        // === 缓存命中 ===
+        // === 全量数据 ===
+        // 存入缓存
+        // 方案B：当启用了原生指针且API版本符合时，使用 PointerIcon
+        // 方案A：使用自定义View绘制
+        // 因为 Python 端现在每 1 秒会发一次心跳包。
+        // 所以，如果我们超过 3 秒 (3000ms) 还没收到任何数据，
+        // 那肯定是因为服务器挂了，或者是网络断了。
+        // 为了避免瞬间闪烁，再次确认时间差
+        // 重置计时，避免疯狂触发
+        // 恢复为默认箭头
+        // 只有真的断连了，才会变回默认光标
+        // UDP 相关变量
+        Thread cursorNetworkThread = new Thread(() -> {
             try {
                 // 1. 初始化 Socket
                 cursorSocket = new java.net.DatagramSocket();
                 cursorSocket.setSoTimeout(1000); // 1秒超时
 
                 java.net.InetAddress serverAddr = java.net.InetAddress.getByName(computerIpAddress);
-                byte[] helloData = "CURSOR_HELLO".getBytes("UTF-8");
+                byte[] helloData = "CURSOR_HELLO".getBytes(StandardCharsets.UTF_8);
                 java.net.DatagramPacket helloPacket = new java.net.DatagramPacket(
                         helloData, helloData.length, serverAddr, CURSOR_PORT);
 
@@ -4103,13 +4186,13 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                             if (targetBitmap != null) {
                                 final android.graphics.Bitmap finalBmp = targetBitmap;
                                 runOnUiThread(() -> {
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && prefConfig.enableNativeMousePointer) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && prefConfig.enableNativeMousePointer) {
                                         // 方案B：当启用了原生指针且API版本符合时，使用 PointerIcon
                                         PointerIcon pointerIcon = PointerIcon.create(finalBmp, hotX, hotY);
                                         streamView.setPointerIcon(pointerIcon);
                                     } else {
                                         // 方案A：使用自定义View绘制
-                                        com.limelight.ui.CursorView cursorOverlay = findViewById(R.id.cursorOverlay);
+                                        CursorView cursorOverlay = findViewById(R.id.cursorOverlay);
                                         if (cursorOverlay != null) {
                                             cursorOverlay.setCursorBitmap(finalBmp, hotX, hotY);
                                         }
@@ -4132,11 +4215,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                             lastReceiveTime = System.currentTimeMillis(); // 重置计时，避免疯狂触发
 
                             runOnUiThread(() -> {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && prefConfig.enableNativeMousePointer) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && prefConfig.enableNativeMousePointer) {
                                     // 恢复为默认箭头
                                     streamView.setPointerIcon(PointerIcon.getSystemIcon(Game.this, PointerIcon.TYPE_ARROW));
                                 } else {
-                                    com.limelight.ui.CursorView cursorOverlay = findViewById(R.id.cursorOverlay);
+                                    CursorView cursorOverlay = findViewById(R.id.cursorOverlay);
                                     if (cursorOverlay != null) {
                                         // 只有真的断连了，才会变回默认光标
                                         cursorOverlay.resetToDefault();
@@ -4357,9 +4440,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
      */
     public void showGameMenu(GameInputDevice device) {
         switch (currentBackKeyMenu) {
-            case GAME_MENU:
-                new GameMenu(this, app, conn, device);
-                break;
             case CROWN_MODE:
                 if (controllerManager != null && prefConfig.onscreenKeyboard) {
                     controllerManager.getSuperPagesController().returnOperation();
@@ -4368,6 +4448,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             case NO_MENU:
                 // 无操作，直接返回
                 break;
+            case GAME_MENU:
             default:
                 new GameMenu(this, app, conn, device);
                 break;
@@ -4426,7 +4507,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // 2. 当前是【悬浮】状态 -> 切换到【固定】
         else if (!prefConfig.perfOverlayLocked) {
-            prefConfig.enablePerfOverlay = true;
             prefConfig.perfOverlayLocked = true;
             performanceOverlayManager.applyOverlayState(); // 应用状态
         }
@@ -4511,55 +4591,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
      */
     public boolean isCrownFeatureEnabled() {
         return prefConfig.onscreenKeyboard;
-    }
-
-    /**
-     * 刷新性能覆盖层显示项配置（用户更改配置后调用）
-     */
-    public void refreshPerformanceOverlayConfig() {
-        if (performanceOverlayManager != null) {
-            performanceOverlayManager.refreshPerformanceOverlayConfig();
-        }
-    }
-
-    private static byte getModifier(short key) {
-        switch (key) {
-            case KeyboardTranslator.VK_LSHIFT:
-                return KeyboardPacket.MODIFIER_SHIFT;
-            case KeyboardTranslator.VK_LCONTROL:
-                return KeyboardPacket.MODIFIER_CTRL;
-            case KeyboardTranslator.VK_LWIN:
-                return KeyboardPacket.MODIFIER_META;
-            case KeyboardTranslator.VK_MENU:
-                return KeyboardPacket.MODIFIER_ALT;
-
-            default:
-                return 0;
-        }
-    }
-
-    private void sendKeys(short[] keys) {
-        final byte[] modifier = {(byte) 0};
-
-        for (short key : keys) {
-            conn.sendKeyboardInput(key, KeyboardPacket.KEY_DOWN, modifier[0], (byte) 0);
-
-            // Apply the modifier of the pressed key, e.g. CTRL first issues a CTRL event (without
-            // modifier) and then sends the following keys with the CTRL modifier applied
-            modifier[0] |= getModifier(key);
-        }
-
-        new Handler().postDelayed((() -> {
-
-            for (int pos = keys.length - 1; pos >= 0; pos--) {
-                short key = keys[pos];
-
-                // Remove the keys modifier before releasing the key
-                modifier[0] &= ~getModifier(key);
-
-                conn.sendKeyboardInput(key, KeyboardPacket.KEY_UP, modifier[0], (byte) 0);
-            }
-        }), 25);
     }
 
     public ControllerHandler getControllerHandler() {

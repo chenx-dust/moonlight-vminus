@@ -1,5 +1,6 @@
 package com.limelight.preferences;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -75,6 +76,7 @@ public class StreamSettings extends Activity {
     // HACK for Android 9
     static DisplayCutout displayCutoutP;
 
+    @SuppressLint("SuspiciousIndentation")
     void reloadSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Display.Mode mode = getWindowManager().getDefaultDisplay().getMode();
@@ -183,6 +185,16 @@ public class StreamSettings extends Activity {
         private boolean nativeFramerateShown = false;
 
         private String exportConfigString = null;
+
+        // 保存分类和对应的 Tab TextView 的映射
+        private final Map<PreferenceCategory, TextView> categoryTabMap = new HashMap<>();
+        private final Map<PreferenceCategory, TextView> categoryGridTabMap = new HashMap<>();
+        private PreferenceCategory currentVisibleCategory = null;
+        // 保存导航滚动视图的引用
+        private HorizontalScrollView navScrollView = null;
+        private ScrollView navGridScrollView = null;
+        // 标记是否正在手动滚动（点击 Tab 触发的滚动）
+        private boolean isManualScrolling = false;
 
         /**
          * 获取目标显示器（优先使用外接显示器）
@@ -404,106 +416,250 @@ public class StreamSettings extends Activity {
             super.onActivityCreated(savedInstanceState);
 
             Activity activity = getActivity();
-            if (activity == null) {
-                return;
-            }
+            if (activity == null) return;
 
-            // 1. 获取视图组件
+            // 获取视图组件
             LinearLayout navContainer = activity.findViewById(R.id.settings_nav_container);
             FlexboxLayout navGridContainer = activity.findViewById(R.id.settings_nav_grid_container);
-            HorizontalScrollView navScroll = activity.findViewById(R.id.settings_nav_scroll);
-            ScrollView navGridScroll = activity.findViewById(R.id.settings_nav_grid_scroll);
+            navScrollView = activity.findViewById(R.id.settings_nav_scroll);
+            navGridScrollView = activity.findViewById(R.id.settings_nav_grid_scroll);
             ImageView toggleButton = activity.findViewById(R.id.settings_nav_toggle);
 
-            // 2. 安全检查
-            if (navContainer == null || navGridContainer == null || navScroll == null ||
-                navGridScroll == null || toggleButton == null) {
+            if (navContainer == null || navGridContainer == null || navScrollView == null ||
+                navGridScrollView == null || toggleButton == null) {
                 return;
             }
 
-            // 3. 配置 Flexbox 自动换行
+            // 配置 Flexbox 自动换行
             navGridContainer.setFlexWrap(FlexWrap.WRAP);
             navGridContainer.setFlexDirection(FlexDirection.ROW);
             navGridContainer.setJustifyContent(JustifyContent.FLEX_START);
 
-            // 4. 清空视图
             navContainer.removeAllViews();
             navGridContainer.removeAllViews();
 
             PreferenceScreen screen = getPreferenceScreen();
-            if (screen == null) {
-                return;
+            if (screen == null) return;
+
+            // 创建收起按钮
+            navGridContainer.addView(createCollapseButton(activity, navScrollView, toggleButton, navGridScrollView));
+
+            // 添加分类按钮
+            int margin = dpToPx(6);
+            for (int i = 0; i < screen.getPreferenceCount(); i++) {
+                Preference pref = screen.getPreference(i);
+                if (!(pref instanceof PreferenceCategory)) continue;
+
+                PreferenceCategory category = (PreferenceCategory) pref;
+                if (category.getTitle() == null) continue;
+
+                String title = category.getTitle().toString();
+                String emojiOnly = extractEmoji(title);
+
+                // 水平模式 Tab（只显示 emoji）
+                TextView tabHorizontal = createTab(activity, emojiOnly);
+                LinearLayout.LayoutParams lpHorizontal = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                lpHorizontal.rightMargin = dpToPx(12);
+                tabHorizontal.setLayoutParams(lpHorizontal);
+                tabHorizontal.setOnClickListener(v -> scrollToCategory(category));
+                navContainer.addView(tabHorizontal);
+                categoryTabMap.put(category, tabHorizontal);
+
+                // 网格模式 Tab（显示完整文字）
+                TextView tabGrid = createTab(activity, title);
+                FlexboxLayout.LayoutParams lpFlex = new FlexboxLayout.LayoutParams(
+                        FlexboxLayout.LayoutParams.WRAP_CONTENT,
+                        FlexboxLayout.LayoutParams.WRAP_CONTENT
+                );
+                lpFlex.setMargins(margin, margin, margin, margin);
+                tabGrid.setLayoutParams(lpFlex);
+                tabGrid.setOnClickListener(v -> scrollToCategory(category));
+                navGridContainer.addView(tabGrid);
+                categoryGridTabMap.put(category, tabGrid);
             }
 
-            final ImageView collapseBtn = new ImageView(activity);
+            // 展开按钮点击事件
+            toggleButton.setOnClickListener(v -> {
+                navScrollView.setVisibility(View.GONE);
+                toggleButton.setVisibility(View.GONE);
+                navGridScrollView.setVisibility(View.VISIBLE);
+            });
+
+            // 添加滚动监听
+            new Handler().post(() -> {
+                View fragmentView = getView();
+                if (fragmentView != null) {
+                    ListView listView = fragmentView.findViewById(android.R.id.list);
+                    if (listView != null) {
+                        setupScrollListener(listView);
+                    }
+                }
+            });
+        }
+
+        private ImageView createCollapseButton(Activity activity, HorizontalScrollView navScroll,
+                                               ImageView toggleButton, ScrollView navGridScroll) {
+            ImageView collapseBtn = new ImageView(activity);
             collapseBtn.setImageResource(R.drawable.ic_list_view);
             collapseBtn.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
             collapseBtn.setScaleType(ImageView.ScaleType.FIT_CENTER);
             collapseBtn.setMinimumHeight(dpToPx(28));
 
-            GradientDrawable bgCollapse = new GradientDrawable();
-            bgCollapse.setColor(Color.parseColor("#33FFFFFF"));
-            bgCollapse.setCornerRadius(dpToPx(16));
-            collapseBtn.setBackground(bgCollapse);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.parseColor("#33FFFFFF"));
+            bg.setCornerRadius(dpToPx(16));
+            collapseBtn.setBackground(bg);
 
-            FlexboxLayout.LayoutParams lpCollapse = new FlexboxLayout.LayoutParams(
+            int margin = dpToPx(6);
+            FlexboxLayout.LayoutParams lp = new FlexboxLayout.LayoutParams(
                     FlexboxLayout.LayoutParams.WRAP_CONTENT,
                     FlexboxLayout.LayoutParams.WRAP_CONTENT
             );
-            int margin = dpToPx(6);
-            lpCollapse.setMargins(margin, margin, margin, margin);
-            collapseBtn.setLayoutParams(lpCollapse);
+            lp.setMargins(margin, margin, margin, margin);
+            collapseBtn.setLayoutParams(lp);
 
-            // 点击内部收起按钮 -> 切换回水平模式
             collapseBtn.setOnClickListener(v -> {
                 navScroll.setVisibility(View.VISIBLE);
                 toggleButton.setVisibility(View.VISIBLE);
                 navGridScroll.setVisibility(View.GONE);
             });
 
-            // 添加到网格的第一个位置
-            navGridContainer.addView(collapseBtn);
+            return collapseBtn;
+        }
 
-            // 5. 循环添加普通分类按钮
+        private void setupScrollListener(ListView listView) {
+            listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                    if (scrollState == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+                        // 滚动停止后，恢复自动更新
+                        isManualScrolling = false;
+                        updateVisibleCategory((ListView) view);
+                    }
+                }
+
+                @Override
+                public void onScroll(android.widget.AbsListView view, int firstVisibleItem,
+                                    int visibleItemCount, int totalItemCount) {
+                    // 如果正在手动滚动，暂时不更新（避免定位到相邻 item）
+                    if (!isManualScrolling) {
+                        updateVisibleCategory((ListView) view);
+                    }
+                }
+            });
+            updateVisibleCategory(listView);
+        }
+
+        private void updateVisibleCategory(ListView listView) {
+            PreferenceScreen screen = getPreferenceScreen();
+            if (screen == null || listView == null) return;
+
+            int firstVisiblePosition = listView.getFirstVisiblePosition();
+            int lastVisiblePosition = firstVisiblePosition + listView.getChildCount() - 1;
+
+            PreferenceCategory newVisibleCategory = null;
+            int categoryPosition = -1;
+
             for (int i = 0; i < screen.getPreferenceCount(); i++) {
                 Preference pref = screen.getPreference(i);
-                if (pref instanceof PreferenceCategory) {
-                    PreferenceCategory category = (PreferenceCategory) pref;
-                    if (category.getTitle() == null) {
-                        continue;
-                    }
+                if (!(pref instanceof PreferenceCategory)) continue;
 
-                    // --- 水平模式 Tab ---
-                    final TextView tabHorizontal = createTab(activity, category.getTitle().toString());
-                    LinearLayout.LayoutParams lpHorizontal = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    lpHorizontal.rightMargin = dpToPx(12);
-                    tabHorizontal.setLayoutParams(lpHorizontal);
-                    tabHorizontal.setOnClickListener(v -> scrollToCategory(category));
-                    navContainer.addView(tabHorizontal);
+                PreferenceCategory category = (PreferenceCategory) pref;
+                int position = findAdapterPositionForPreference(category);
 
-                    // --- 网格模式 Tab ---
-                    final TextView tabGrid = createTab(activity, category.getTitle().toString());
-                    FlexboxLayout.LayoutParams lpFlex = new FlexboxLayout.LayoutParams(
-                            FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                            FlexboxLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    lpFlex.setMargins(margin, margin, margin, margin);
-                    tabGrid.setLayoutParams(lpFlex);
-                    tabGrid.setOnClickListener(v -> scrollToCategory(category));
-                    navGridContainer.addView(tabGrid);
+                if (position >= 0 && position <= lastVisiblePosition &&
+                    (position >= firstVisiblePosition || position > categoryPosition)) {
+                    newVisibleCategory = category;
+                    categoryPosition = position;
                 }
             }
 
-            // 6. 左侧固定按钮点击事件（只负责展开）
-            toggleButton.setOnClickListener(v -> {
-                // 切换到网格模式
-                navScroll.setVisibility(View.GONE);
-                toggleButton.setVisibility(View.GONE);
-                navGridScroll.setVisibility(View.VISIBLE);
+            if (newVisibleCategory != currentVisibleCategory) {
+                if (currentVisibleCategory != null) {
+                    updateTabHighlight(currentVisibleCategory, false);
+                }
+                currentVisibleCategory = newVisibleCategory;
+                if (currentVisibleCategory != null) {
+                    updateTabHighlight(currentVisibleCategory, true);
+                }
+            }
+        }
+
+        private void updateTabHighlight(PreferenceCategory category, boolean highlight) {
+            TextView tabHorizontal = categoryTabMap.get(category);
+            TextView tabGrid = categoryGridTabMap.get(category);
+
+            int bgColor = highlight ? Color.parseColor("#66FFFFFF") : Color.parseColor("#33FFFFFF");
+            float alpha = highlight ? 1.0f : 0.7f;
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dpToPx(16));
+            bg.setColor(bgColor);
+
+            if (tabHorizontal != null) {
+                tabHorizontal.setBackground(bg);
+                tabHorizontal.setAlpha(alpha);
+                if (highlight) {
+                    tabHorizontal.setTextColor(Color.WHITE);
+                    // 确保高亮的 Tab 在导航栏中可见
+                    scrollNavToTab(tabHorizontal, navScrollView);
+                }
+            }
+            if (tabGrid != null) {
+                GradientDrawable bgGrid = new GradientDrawable();
+                bgGrid.setCornerRadius(dpToPx(16));
+                bgGrid.setColor(bgColor);
+                tabGrid.setBackground(bgGrid);
+                tabGrid.setAlpha(alpha);
+                if (highlight) {
+                    tabGrid.setTextColor(Color.WHITE);
+                }
+            }
+        }
+
+        // 滚动水平导航栏，确保指定的 Tab 可见
+        private void scrollNavToTab(TextView tab, HorizontalScrollView scrollView) {
+            if (tab == null || scrollView == null) {
+                return;
+            }
+
+            // 使用 post 确保布局已完成
+            scrollView.post(() -> {
+                // 获取 Tab 相对于 HorizontalScrollView 内容（LinearLayout）的位置
+                int tabLeft = tab.getLeft();
+                int tabRight = tab.getRight();
+                int scrollWidth = scrollView.getWidth();
+                int scrollX = scrollView.getScrollX();
+                int padding = dpToPx(12);
+
+                // 计算 Tab 在屏幕上的可见位置
+                int tabVisibleLeft = tabLeft - scrollX;
+                int tabVisibleRight = tabRight - scrollX;
+
+                // 如果 Tab 的左侧在可见区域外（左侧被遮挡）
+                if (tabVisibleLeft < padding) {
+                    // 滚动使 Tab 左侧可见，并留出边距
+                    scrollView.smoothScrollTo(tabLeft - padding, 0);
+                }
+                // 如果 Tab 的右侧在可见区域外（右侧被遮挡）
+                else if (tabVisibleRight > scrollWidth - padding) {
+                    // 滚动使 Tab 右侧可见，并留出边距
+                    scrollView.smoothScrollTo(tabRight - scrollWidth + padding, 0);
+                }
             });
+        }
+
+        // 辅助方法：提取字符串开头的 emoji
+        private String extractEmoji(String text) {
+            if (text == null || text.isEmpty()) {
+                return "";
+            }
+
+            int spaceIndex = text.indexOf(' ');
+            return spaceIndex > 0 ? text.substring(0, spaceIndex) : text.substring(0, 1);
         }
 
         // 辅助方法：创建统一样式的 Tab (避免代码重复)
@@ -526,6 +682,16 @@ public class StreamSettings extends Activity {
         private void scrollToCategory(PreferenceCategory category) {
             int position = findAdapterPositionForPreference(category);
             if (position >= 0) {
+                // 立即高亮目标分类的 Tab
+                if (currentVisibleCategory != null) {
+                    updateTabHighlight(currentVisibleCategory, false);
+                }
+                currentVisibleCategory = category;
+                updateTabHighlight(category, true);
+
+                // 设置手动滚动标志，防止滚动过程中自动更新导致定位到相邻 item
+                isManualScrolling = true;
+
                 ListView listView = null;
                 View fragmentView = getView();
                 if (fragmentView != null) {
@@ -936,7 +1102,15 @@ public class StreamSettings extends Activity {
                 LimeLog.info("Excluding HDR toggle based on OS");
                 PreferenceCategory category =
                         (PreferenceCategory) findPreference("category_advanced_settings");
-                category.removePreference(findPreference("checkbox_enable_hdr"));
+                // 必须先移除依赖项，再移除被依赖的项，否则会崩溃
+                Preference hdrHighBrightnessPref = findPreference("checkbox_enable_hdr_high_brightness");
+                if (hdrHighBrightnessPref != null) {
+                    category.removePreference(hdrHighBrightnessPref);
+                }
+                Preference hdrPref = findPreference("checkbox_enable_hdr");
+                if (hdrPref != null) {
+                    category.removePreference(hdrPref);
+                }
             }
             else {
                 // 获取目标显示器的 HDR 能力（优先使用外接显示器）
@@ -955,20 +1129,33 @@ public class StreamSettings extends Activity {
                     }
                 }
 
+                PreferenceCategory category =
+                        (PreferenceCategory) findPreference("category_advanced_settings");
+                CheckBoxPreference hdrPref = (CheckBoxPreference) findPreference("checkbox_enable_hdr");
+                CheckBoxPreference hdrHighBrightnessPref = (CheckBoxPreference) findPreference("checkbox_enable_hdr_high_brightness");
+
                 if (!foundHdr10) {
                     LimeLog.info("Excluding HDR toggle based on display capabilities");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_advanced_settings");
-                    category.removePreference(findPreference("checkbox_enable_hdr"));
+                    // 必须先移除依赖项，再移除被依赖的项，否则会崩溃
+                    if (hdrHighBrightnessPref != null) {
+                        category.removePreference(hdrHighBrightnessPref);
+                    }
+                    if (hdrPref != null) {
+                        category.removePreference(hdrPref);
+                    }
                 }
                 else if (PreferenceConfiguration.isShieldAtvFirmwareWithBrokenHdr()) {
                     LimeLog.info("Disabling HDR toggle on old broken SHIELD TV firmware");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_advanced_settings");
-                    CheckBoxPreference hdrPref = (CheckBoxPreference) category.findPreference("checkbox_enable_hdr");
-                    hdrPref.setEnabled(false);
-                    hdrPref.setChecked(false);
-                    hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    if (hdrPref != null) {
+                        hdrPref.setEnabled(false);
+                        hdrPref.setChecked(false);
+                        hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    }
+                    // 同时禁用 HDR 高亮度选项
+                    if (hdrHighBrightnessPref != null) {
+                        hdrHighBrightnessPref.setEnabled(false);
+                        hdrHighBrightnessPref.setChecked(false);
+                    }
                 }
             }
 
