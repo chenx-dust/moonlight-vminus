@@ -1,20 +1,11 @@
 package com.limelight;
 
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.UnknownHostException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.ExecutionException;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.RequestOptions;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.crypto.AndroidCryptoProvider;
 import com.limelight.computers.ComputerManagerService;
@@ -34,18 +25,14 @@ import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
-import com.limelight.utils.AnalyticsManager;
 import com.limelight.utils.AppCacheManager;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
-import com.limelight.utils.EasyTierController;
 import com.limelight.utils.HelpLauncher;
 import com.limelight.utils.Iperf3Tester;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
-import com.limelight.utils.UpdateManager;
-import com.squareup.seismic.ShakeDetector;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -56,38 +43,26 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.hardware.SensorManager;
 import android.net.Uri;
-import android.net.VpnService;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.util.LruCache;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
-import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AnimationUtils;
 import android.view.animation.LayoutAnimationController;
@@ -95,30 +70,17 @@ import android.widget.AbsListView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.GridView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import jp.wasabeef.glide.transformations.BlurTransformation;
-import jp.wasabeef.glide.transformations.ColorFilterTransformation;
-
-public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeDetector.Listener, EasyTierController.VpnPermissionCallback {
+public class PcView extends Activity implements AdapterFragmentCallbacks {
 
     // Constants
     private static final long REFRESH_DEBOUNCE_DELAY = 150;
-    private static final long SHAKE_DEBOUNCE_INTERVAL = 3000;
-    private static final int MAX_DAILY_REFRESH = 7;
-    private static final int VPN_PERMISSION_REQUEST_CODE = 101;
-
-    private static final String REFRESH_PREF_NAME = "RefreshLimit";
-    private static final String REFRESH_COUNT_KEY = "refresh_count";
-    private static final String REFRESH_DATE_KEY = "refresh_date";
     private static final String SCENE_PREF_NAME = "SceneConfigs";
     private static final String SCENE_KEY_PREFIX = "scene_";
 
@@ -141,7 +103,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
     private RelativeLayout noPcFoundLayout;
     private PcGridAdapter pcGridAdapter;
     private AbsListView pcListView;
-    private ImageView backgroundImageView;
 
     // State
     private boolean isFirstLoad = true;
@@ -149,19 +110,13 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
     private boolean runningPolling;
     private boolean inForeground;
     private boolean completeOnCreateCalled;
-    private long lastShakeTime;
 
     // Helpers
     private ShortcutHelper shortcutHelper;
-    private EasyTierController easyTierController;
-    private AnalyticsManager analyticsManager;
-    private ShakeDetector shakeDetector;
     private AddressSelectionDialog currentAddressDialog;
-    private BroadcastReceiver backgroundImageRefreshReceiver;
 
     // Managers
     private ComputerManagerService.ComputerManagerBinder managerBinder;
-    private LruCache<String, Bitmap> bitmapLruCache;
 
     // Handlers
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
@@ -195,9 +150,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        easyTierController = new EasyTierController(this, this);
         inForeground = true;
-        initBitmapCache();
 
         final GlPreferences glPrefs = GlPreferences.readPreferences(this);
         if (!glPrefs.savedFingerprint.equals(Build.FINGERPRINT) || glPrefs.glRenderer.isEmpty()) {
@@ -222,11 +175,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         UiHelper.showDecoderCrashDialog(this);
         inForeground = true;
         startComputerUpdates();
-
-        if (analyticsManager != null) {
-            analyticsManager.startUsageTracking();
-        }
-        startShakeDetector();
     }
 
     @Override
@@ -234,11 +182,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         super.onPause();
         inForeground = false;
         stopComputerUpdates(false);
-
-        if (analyticsManager != null) {
-            analyticsManager.stopUsageTracking();
-        }
-        stopShakeDetector();
     }
 
     @Override
@@ -251,9 +194,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
     public void onDestroy() {
         super.onDestroy();
 
-        if (easyTierController != null) {
-            easyTierController.onDestroy();
-        }
         if (managerBinder != null) {
             unbindService(serviceConnection);
         }
@@ -261,11 +201,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             currentAddressDialog.dismiss();
             currentAddressDialog = null;
         }
-        unregisterBackgroundReceiver();
 
-        if (analyticsManager != null) {
-            analyticsManager.cleanup();
-        }
         if (pendingRefreshRunnable != null) {
             refreshHandler.removeCallbacks(pendingRefreshRunnable);
             pendingRefreshRunnable = null;
@@ -273,18 +209,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
     }
 
     // Initialization Methods
-
-    private void initBitmapCache() {
-        int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
-        int cacheSize = maxMemory / 8;
-        bitmapLruCache = new LruCache<String, Bitmap>(cacheSize) {
-            @Override
-            protected int sizeOf(String key, Bitmap value) {
-                return value.getByteCount() / 1024;
-            }
-        };
-    }
-
     private void initGlRenderer(GlPreferences glPrefs) {
         GLSurfaceView surfaceView = new GLSurfaceView(this);
         surfaceView.setRenderer(new GLSurfaceView.Renderer() {
@@ -314,17 +238,11 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         shortcutHelper = new ShortcutHelper(this);
         UiHelper.setLocale(this);
 
-        analyticsManager = AnalyticsManager.getInstance(this);
-        analyticsManager.logAppLaunch();
-        UpdateManager.checkForUpdatesOnStartup(this);
-
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection, Service.BIND_AUTO_CREATE);
 
         pcGridAdapter = new PcGridAdapter(this, PreferenceConfiguration.readPreferences(this));
         pcGridAdapter.setAvatarClickListener(this::handleAvatarClick);
 
-        initShakeDetector();
-        registerBackgroundReceiver();
         initializeViews();
     }
 
@@ -337,10 +255,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         }
 
         clientName = Settings.Global.getString(getContentResolver(), "device_name");
-        backgroundImageView = findViewById(R.id.pcBackgroundImage);
-
-        loadBackgroundImage();
-        setupBackgroundImageLongPress();
         initSceneButtons();
 
         pcGridAdapter.updateLayoutWithPreferences(this, PreferenceConfiguration.readPreferences(this));
@@ -357,7 +271,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         ImageButton settingsButton = findViewById(R.id.settingsButton);
         ImageButton restoreSessionButton = findViewById(R.id.restoreSessionButton);
         ImageButton aboutButton = findViewById(R.id.aboutButton);
-        ImageButton easyTierButton = findViewById(R.id.easyTierControlButton);
         ImageButton toggleUnpairedButton = findViewById(R.id.toggleUnpairedButton);
 
         settingsButton.setOnClickListener(v -> startActivity(new Intent(this, StreamSettings.class)));
@@ -365,9 +278,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
         if (aboutButton != null) {
             aboutButton.setOnClickListener(v -> showAboutDialog());
-        }
-        if (easyTierButton != null) {
-            easyTierButton.setOnClickListener(v -> showEasyTierControlDialog());
         }
         if (toggleUnpairedButton != null) {
             updateToggleUnpairedButtonIcon(toggleUnpairedButton);
@@ -398,358 +308,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             }
         } else {
             debouncedNotifyDataSetChanged();
-        }
-    }
-
-    // Background Image Methods
-
-    private void loadBackgroundImage() {
-        if (backgroundImageView == null) return;
-
-        String imageUrl = getBackgroundImageUrl();
-        new Thread(() -> {
-            try {
-                Object glideTarget = resolveGlideTarget(imageUrl);
-                Bitmap bitmap = Glide.with(this)
-                        .asBitmap()
-                        .load(glideTarget)
-                        .skipMemoryCache(true)
-                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                        .submit()
-                        .get();
-
-                if (bitmap != null) {
-                    bitmapLruCache.put(imageUrl, bitmap);
-                    runOnUiThread(() -> applyBlurredBackground(bitmap));
-                }
-            } catch (ExecutionException e) {
-                handleGlideException(e);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    private Object resolveGlideTarget(String imageUrl) {
-        if (imageUrl.startsWith("http")) {
-            return imageUrl;
-        }
-        File localFile = new File(imageUrl);
-        return localFile.exists() ? localFile : getDefaultApiUrl();
-    }
-
-    private void applyBlurredBackground(Bitmap bitmap) {
-        if (backgroundImageView == null) return;
-        Glide.with(this)
-                .load(bitmap)
-                .apply(RequestOptions.bitmapTransform(new BlurTransformation(2, 3)))
-                .transform(new ColorFilterTransformation(Color.argb(120, 0, 0, 0)))
-                .into(backgroundImageView);
-    }
-
-    private void handleGlideException(ExecutionException e) {
-        Throwable cause = e.getCause();
-        if (cause != null) {
-            String msg = cause.getMessage();
-            if (msg != null && (msg.contains("HttpException") || msg.contains("SocketException") || msg.contains("MediaMetadataRetriever"))) {
-                LimeLog.warning("Background image download failed: " + msg);
-                return;
-            }
-        }
-        e.printStackTrace();
-    }
-
-    private void setupBackgroundImageLongPress() {
-        if (backgroundImageView != null) {
-            backgroundImageView.setOnLongClickListener(v -> {
-                saveImageWithPermissionCheck();
-                return true;
-            });
-        }
-    }
-
-    @NonNull
-    private String getBackgroundImageUrl() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String type = prefs.getString("background_image_type", "default");
-
-        switch (type) {
-            case "api":
-                String apiUrl = prefs.getString("background_image_url", null);
-                if (apiUrl != null && !apiUrl.isEmpty()) {
-                    return apiUrl;
-                }
-                prefs.edit().putString("background_image_type", "default").apply();
-                return getDefaultApiUrl();
-
-            case "local":
-                String localPath = prefs.getString("background_image_local_path", null);
-                if (localPath != null && new File(localPath).exists()) {
-                    return localPath;
-                }
-                prefs.edit()
-                        .putString("background_image_type", "default")
-                        .remove("background_image_local_path")
-                        .apply();
-                return getDefaultApiUrl();
-
-            default:
-                return getDefaultApiUrl();
-        }
-    }
-
-    private String getDefaultApiUrl() {
-        int rotation = getWindowManager().getDefaultDisplay().getRotation();
-        return rotation == Configuration.ORIENTATION_PORTRAIT
-                ? "https://img-api.pipw.top"
-                : "https://img-api.pipw.top/?phone=true";
-    }
-
-    private void refreshBackgroundImage(boolean isFromShake) {
-        if (backgroundImageView == null) return;
-
-        String imageUrl = getBackgroundImageUrl();
-        bitmapLruCache.remove(imageUrl);
-
-        new Thread(() -> {
-            try {
-                Object glideTarget = resolveGlideTarget(imageUrl);
-                Bitmap bitmap = Glide.with(this)
-                        .asBitmap()
-                        .load(glideTarget)
-                        .skipMemoryCache(true)
-                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                        .submit()
-                        .get();
-
-                if (bitmap != null) {
-                    bitmapLruCache.put(imageUrl, bitmap);
-                    runOnUiThread(() -> {
-                        applyBlurredBackground(bitmap);
-                        if (isFromShake) {
-                            showToast(getString(R.string.background_refreshed_with_remaining, getRemainingRefreshCount()));
-                        }
-                    });
-                } else {
-                    runOnUiThread(() -> showToast(getString(R.string.refresh_failed_please_retry)));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> showToast(getString(R.string.refresh_failed_with_error, e.getMessage())));
-            }
-        }).start();
-    }
-
-    // Image Save Methods
-
-    private void saveImageWithPermissionCheck() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            showToast(getString(R.string.storage_permission_required));
-            requestStoragePermission();
-            return;
-        }
-        saveImage();
-    }
-
-    private void requestStoragePermission() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-            intent.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(intent);
-        } catch (Exception e) {
-            startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-        }
-    }
-
-    private void saveImage() {
-        Bitmap bitmap = bitmapLruCache.get(getBackgroundImageUrl());
-
-        if (bitmap == null) {
-            if (backgroundImageView != null && backgroundImageView.getDrawable() != null) {
-                showToast(getString(R.string.downloading_image_please_wait));
-                downloadAndSaveImage();
-            } else {
-                showToast(getString(R.string.image_not_loaded_please_retry));
-            }
-            return;
-        }
-        saveBitmapToFile(bitmap);
-    }
-
-    private void downloadAndSaveImage() {
-        new Thread(() -> {
-            try {
-                Object glideTarget = resolveGlideTarget(getBackgroundImageUrl());
-                Bitmap bitmap = Glide.with(this)
-                        .asBitmap()
-                        .load(glideTarget)
-                        .submit()
-                        .get();
-
-                if (bitmap != null) {
-                    bitmapLruCache.put(getBackgroundImageUrl(), bitmap);
-                    runOnUiThread(() -> saveBitmapToFile(bitmap));
-                } else {
-                    runOnUiThread(() -> showToast(getString(R.string.image_download_failed_retry)));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> showToast(getString(R.string.image_download_failed_with_error, e.getMessage())));
-            }
-        }).start();
-    }
-
-    private void saveBitmapToFile(Bitmap bitmap) {
-        if (bitmap == null) {
-            showToast(getString(R.string.image_invalid));
-            return;
-        }
-
-        File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "setu");
-        if (!dir.exists() && !dir.mkdirs()) {
-            showToast(getString(R.string.image_save_failed_with_error, "Failed to create directory"));
-            return;
-        }
-
-        String fileName = "pipw-" + System.currentTimeMillis() + ".png";
-        File file = new File(dir, fileName);
-
-        try (FileOutputStream outputStream = new FileOutputStream(file)) {
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-            outputStream.flush();
-            refreshSystemPic(file);
-            showToast(getString(R.string.image_saved_successfully));
-        } catch (IOException e) {
-            e.printStackTrace();
-            showToast(getString(R.string.image_save_failed_with_error, e.getMessage()));
-        }
-    }
-
-    private void refreshSystemPic(File file) {
-        Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        intent.setData(Uri.fromFile(file));
-        sendBroadcast(intent);
-    }
-
-    // Shake Detection Methods
-
-    private void initShakeDetector() {
-        shakeDetector = new ShakeDetector(this);
-        shakeDetector.setSensitivity(ShakeDetector.SENSITIVITY_MEDIUM);
-    }
-
-    private void startShakeDetector() {
-        if (shakeDetector == null) return;
-        try {
-            shakeDetector.start((SensorManager) getSystemService(SENSOR_SERVICE));
-        } catch (Exception e) {
-            LimeLog.warning("shakeDetector start failed: " + e.getMessage());
-        }
-    }
-
-    private void stopShakeDetector() {
-        if (shakeDetector == null) return;
-        try {
-            shakeDetector.stop();
-        } catch (Exception e) {
-            LimeLog.warning("shakeDetector stop failed: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public void hearShake() {
-        long currentTime = System.currentTimeMillis();
-
-        if (currentTime - lastShakeTime < SHAKE_DEBOUNCE_INTERVAL) {
-            long remaining = (SHAKE_DEBOUNCE_INTERVAL - (currentTime - lastShakeTime)) / 1000;
-            runOnUiThread(() -> showToast(getString(R.string.please_wait_seconds, remaining)));
-            return;
-        }
-
-        if (!canRefreshToday()) {
-            runOnUiThread(() -> showToast(getString(R.string.daily_limit_reached)));
-            return;
-        }
-
-        lastShakeTime = currentTime;
-        incrementRefreshCount();
-        int remaining = getRemainingRefreshCount();
-
-        runOnUiThread(() -> {
-            showToast(getString(R.string.refreshing_with_remaining, remaining));
-            refreshBackgroundImage(true);
-        });
-    }
-
-    private String getTodayDateString() {
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
-    }
-
-    private boolean canRefreshToday() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = prefs.getInt(REFRESH_COUNT_KEY, 0);
-
-        if (!today.equals(savedDate)) {
-            prefs.edit()
-                    .putString(REFRESH_DATE_KEY, today)
-                    .putInt(REFRESH_COUNT_KEY, 0)
-                    .apply();
-            return true;
-        }
-        return count < MAX_DAILY_REFRESH;
-    }
-
-    private int getRemainingRefreshCount() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = prefs.getInt(REFRESH_COUNT_KEY, 0);
-
-        return today.equals(savedDate) ? Math.max(0, MAX_DAILY_REFRESH - count) : MAX_DAILY_REFRESH;
-    }
-
-    private void incrementRefreshCount() {
-        SharedPreferences prefs = getSharedPreferences(REFRESH_PREF_NAME, MODE_PRIVATE);
-        String today = getTodayDateString();
-        String savedDate = prefs.getString(REFRESH_DATE_KEY, "");
-        int count = today.equals(savedDate) ? prefs.getInt(REFRESH_COUNT_KEY, 0) : 0;
-
-        prefs.edit()
-                .putString(REFRESH_DATE_KEY, today)
-                .putInt(REFRESH_COUNT_KEY, count + 1)
-                .apply();
-    }
-
-    // Background Receiver Methods
-
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
-    private void registerBackgroundReceiver() {
-        backgroundImageRefreshReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if ("com.limelight.REFRESH_BACKGROUND_IMAGE".equals(intent.getAction())) {
-                    refreshBackgroundImage(false);
-                }
-            }
-        };
-
-        IntentFilter filter = new IntentFilter("com.limelight.REFRESH_BACKGROUND_IMAGE");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(backgroundImageRefreshReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(backgroundImageRefreshReceiver, filter);
-        }
-    }
-
-    private void unregisterBackgroundReceiver() {
-        if (backgroundImageRefreshReceiver != null) {
-            try {
-                unregisterReceiver(backgroundImageRefreshReceiver);
-            } catch (IllegalArgumentException e) {
-                LimeLog.warning("Failed to unregister background receiver: " + e.getMessage());
-            }
         }
     }
 
@@ -1606,7 +1164,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         handleFirstLoadAnimation(listView);
         setupListItemClick(listView);
         setupGridColumnWidth(view);
-        setupEmptyAreaLongPress(listView);
 
         UiHelper.applyStatusBarPadding(listView);
         registerForContextMenu(listView);
@@ -1666,25 +1223,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void setupEmptyAreaLongPress(AbsListView listView) {
-        GestureDetector detector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-            @Override
-            public void onLongPress(MotionEvent e) {
-                if (listView.pointToPosition((int) e.getX(), (int) e.getY()) == android.widget.AdapterView.INVALID_POSITION) {
-                    saveImageWithPermissionCheck();
-                }
-            }
-        });
-
-        listView.setOnTouchListener((v, event) -> {
-            if (listView.pointToPosition((int) event.getX(), (int) event.getY()) == android.widget.AdapterView.INVALID_POSITION) {
-                detector.onTouchEvent(event);
-            }
-            return false;
-        });
-    }
-
     private void calculateDynamicColumnWidth(GridView gridView) {
         float density = getResources().getDisplayMetrics().density;
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
@@ -1700,12 +1238,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
     // Dialogs
 
-    private void showEasyTierControlDialog() {
-        if (easyTierController != null) {
-            easyTierController.showControlDialog();
-        }
-    }
-
     private void showAboutDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
 
@@ -1720,8 +1252,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
 
         new AlertDialog.Builder(this, R.style.AppDialogStyle)
                 .setView(dialogView)
-                .setPositiveButton(R.string.about_dialog_github, (d, w) -> openUrl("https://github.com/qiin2333/moonlight-vplus"))
-                .setNeutralButton(R.string.about_dialog_qq, (d, w) -> joinQQGroup("LlbLDIF_YolaM4HZyLx0xAXXo04ZmoBM"))
+                .setPositiveButton(R.string.about_dialog_github, (d, w) -> openUrl("https://github.com/chenx-dust/moonlight-vminus"))
                 .setNegativeButton(R.string.about_dialog_close, (d, w) -> d.dismiss())
                 .show();
     }
@@ -1744,7 +1275,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             }
         } catch (PackageManager.NameNotFoundException ignored) {
         }
-        return "Moonlight V+";
+        return "Moonlight V-";
     }
 
     private void openUrl(String url) {
@@ -1753,35 +1284,6 @@ public class PcView extends Activity implements AdapterFragmentCallbacks, ShakeD
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } catch (Exception ignored) {
-        }
-    }
-
-    public void joinQQGroup(String key) {
-        try {
-            Intent intent = new Intent();
-            intent.setData(Uri.parse("mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3D" + key));
-            startActivity(intent);
-        } catch (Exception ignored) {
-        }
-    }
-
-    // VPN Permission
-
-    @Override
-    public void requestVpnPermission() {
-        Intent intent = VpnService.prepare(this);
-        if (intent != null) {
-            startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE);
-        } else {
-            onActivityResult(VPN_PERMISSION_REQUEST_CODE, RESULT_OK, null);
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == VPN_PERMISSION_REQUEST_CODE && easyTierController != null) {
-            easyTierController.handleVpnPermissionResult(resultCode);
         }
     }
 
