@@ -16,8 +16,13 @@
     <string name="pcview_menu_send_wol"> 发送 Wake-On-LAN 请求 </string>
     <string name="pcview_menu_delete_pc"> 删除电脑 </string>
     <string name="pcview_menu_details"> 查看详情 </string>
+    <string name="pcview_menu_secondary_screen"> 作为副屏串流（基地适用） </string>
     <string name="pcview_menu_sleep_success"> 已催促主机睡眠 </string>
     <string name="pcview_menu_sleep_fail"> 连接主机睡眠失败 </string>
+    <string name="pcview_menu_disable_ipv6">禁用 IPv6</string>
+    <string name="pcview_menu_enable_ipv6">启用 IPv6</string>
+    <string name="pcview_ipv6_disabled">已禁用此电脑的 IPv6 连接</string>
+    <string name="pcview_ipv6_enabled">已启用此电脑的 IPv6 连接</string>
     <!-- Pair messages -->
     <string name="pairing"> 配对中…… </string>
     <string name="pair_pc_offline"> 电脑离线中 </string>
@@ -144,7 +149,7 @@
     <string name="addpc_enter_ip">请输入一个IP地址</string>
     <string name="addpc_wrong_sitelocal"> 该地址似乎不正确。 您必须使用路由器的公共IP地址通过Internet进行串流。 </string>
     <!-- Preferences -->
-    <string name="category_basic_settings">⚙️ 基本设置</string>
+    <string name="category_basic_settings">基本设置</string>
     <string name="title_resolution_list"> 视频分辨率 </string>
     <string name="summary_resolution_list">高分辨率提升图像清晰度。低分辨率提升在低端设备和较慢网络中的串流体验。</string>
     <string name="title_custom_resolutions"> 自定义分辨率 </string>
@@ -171,10 +176,10 @@
     <string name="summary_checkbox_disable_warnings"> 串流中禁用连接错误提示 </string>
     <string name="title_checkbox_enable_pip">启用画中画观察模式</string>
     <string name="summary_checkbox_enable_pip">允许多任务时观看串流画面（但不操作）</string>
-    <string name="category_audio_settings">🔊 音频设置</string>
+    <string name="category_audio_settings">音频设置</string>
     <string name="title_audio_config_list"> 环绕声设置 </string>
     <string name="summary_audio_config_list"> 为家庭影院系统启用5.1或7.1环绕声 </string>
-    <string name="category_input_settings">⌨️ 输入设置</string>
+    <string name="category_input_settings">输入设置</string>
     <string name="title_checkbox_touchscreen_trackpad">将触控屏作为触控板使用</string>
     <string name="summary_checkbox_touchscreen_trackpad">如果启用，则将触控屏作为触控板使用。如果禁用，则启用多点触控模式</string>
 
@@ -203,10 +208,12 @@
     <string name="summary_checkbox_usb_bind_all"> 强制Moonlight的USB驱动接管所有受支持的Xbox手柄 </string>
     <string name="title_checkbox_mouse_emulation"> 通过手柄模拟鼠标 </string>
     <string name="summary_checkbox_mouse_emulation"> 长按开始键将手柄切换为鼠标模式 </string>
+    <string name="title_checkbox_enable_start_key_menu"> 启用长按开始键菜单 </string>
+    <string name="summary_checkbox_enable_start_key_menu"> 长按开始键将打开游戏菜单 </string>
     <string name="title_checkbox_mouse_nav_buttons"> 启用前进后退鼠标键 </string>
     <string name="summary_checkbox_mouse_nav_buttons"> 在一些支持不佳的设备上启用此项可能会使其右键失效 </string>
 
-    <string name="category_enhanced_touch_settings">👆 多点触控设置</string>
+    <string name="category_enhanced_touch_settings">多点触控设置</string>
     <string name="title_checkbox_enable_enhanced_touch">打开增强型触控</string>
     <string name="summary_checkbox_enable_enhanced_touch">关闭后可恢复经典模拟鼠标操作模式</string>
     <string name="title_checkbox_enhanced_touch_on_which_side">反转增强型触控区</string>
@@ -226,7 +233,7 @@
 
     <string name="title_checkbox_flip_face_buttons"> 反转技能键 </string>
     <string name="summary_checkbox_flip_face_buttons"> 为手柄和虚拟手柄调转A/B和X/Y技能键 </string>
-    <string name="category_on_screen_controls_settings">🎛️ 屏幕控制按钮设置</string>
+    <string name="category_on_screen_controls_settings">屏幕控制按钮设置</string>
     <string name="title_checkbox_show_onscreen_controls"> 显示屏幕控制按钮 </string>
     <string name="summary_checkbox_show_onscreen_controls"> 在触摸屏上显示一层虚拟手柄 </string>
     <string name="title_checkbox_vibrate_osc"> 启用震动 </string>
@@ -240,19 +247,19 @@
     <string name="dialog_title_reset_osc"> 重置按钮布局 </string>
     <string name="dialog_text_reset_osc"> 你确定要删除所保存的屏幕按钮布局吗？ </string>
     <string name="toast_reset_osc_success"> 屏幕按钮布局已经重置 </string>
-    <string name="category_ui_settings">🎨 界面设置</string>
+    <string name="category_ui_settings">界面设置</string>
     <string name="title_language_list"> 语言 </string>
     <string name="summary_language_list"> 选择Moonlight显示的语言 </string>
     <string name="title_checkbox_small_icon_mode"> 使用小图标 </string>
     <string name="summary_checkbox_small_icon_mode"> 使用小图标以在屏幕上显示更多项目 </string>
     <string name="title_checkbox_resume_stream">自动恢复串流</string>
     <string name="summary_checkbox_resume_stream">当从后台切回Moonlight时，自动恢复串流会话</string>
-    <string name="category_host_settings">🖥️ 主机设置</string>
+    <string name="category_host_settings">主机设置</string>
     <string name="title_checkbox_enable_sops"> 自动优化主机设置 </string>
     <string name="summary_checkbox_enable_sops"> 允许主机自动更改为与客户端最佳匹配的显示设置 </string>
     <string name="title_checkbox_host_audio"> 在电脑上播放声音 </string>
     <string name="summary_checkbox_host_audio"> 在电脑和本设备同时输出声音 </string>
-    <string name="category_advanced_settings">🔧 高级设置</string>
+    <string name="category_advanced_settings">高级设置</string>
     <string name="title_disable_frame_drop"> 永不掉帧 </string>
     <string name="summary_disable_frame_drop"> 可能会减少在一些设备上的卡顿，但会增加延迟 </string>
     <string name="title_video_format">更改编解码器设置</string>
@@ -261,6 +268,10 @@
     <string name="summary_enable_hdr">当游戏和显卡支持时以HDR模式串流，HDR需要显卡支持 HEVC/AV1 Main 10 编码。⚠注意：串流返回菜单中的HDR开关是切换windows的HDR。</string>
     <string name="title_enable_hdr_high_brightness">启用 HDR 串流高亮度</string>
     <string name="summary_enable_hdr_high_brightness">启用 HDR 串流时强制使用最高屏幕亮度</string>
+    <string name="title_hdr_mode">HDR 模式</string>
+    <string name="summary_hdr_mode">选择 HDR 传输函数：HDR10 (PQ) 适用于大多数显示器，HLG 适用于广播内容</string>
+    <string name="hdr_mode_hdr10">HDR10 (PQ)</string>
+    <string name="hdr_mode_hlg">HLG (混合对数伽马)</string>
     <string name="title_enable_perf_overlay">性能监控图层</string>
     <string name="summary_enable_perf_overlay">显示实时的串流监控数据，盯帧必备！</string>
     <string name="title_perf_overlay_orientation">性能图层方向</string>
@@ -347,16 +358,16 @@
     <string name="summary_about_mode">请前往GitHub查看，喜欢的话点个Star支持一下我们吧</string>
 
     <!-- About dialog strings -->
-    <string name="about_dialog_description">Moonlight V+ 是专为 Foundation Sunshine 打造的增强客户端，为您带来极致的游戏串流体验。</string>
-    <string name="about_dialog_project_info">基于 Moonlight-Android 开源项目，由基地社区倾力打造</string>
-    <string name="about_dialog_thanks">感谢您选择 Moonlight V+！如果觉得好用，欢迎在 GitHub 上点个 Star 支持我们 ⭐</string>
+    <string name="about_dialog_description">Moonlight V- 是专为 Foundation Sunshine 打造的增强客户端，为您带来极致的游戏串流体验。</string>
+    <string name="about_dialog_project_info">基于 Moonlight V- 开源项目，进行简化</string>
+    <string name="about_dialog_thanks">感谢您选择 Moonlight V-！如果觉得好用，欢迎在 GitHub 上点个 Star 支持我们 ⭐</string>
     <string name="about_dialog_github">GitHub</string>
     <string name="about_dialog_star">Star 项目</string>
     <string name="about_dialog_qq">加入QQ群</string>
     <string name="about_dialog_close">关闭</string>
     <string name="check_for_updates">检查更新</string>
     <string name="summary_check_for_updates">检查是否有新版本可用</string>
-    <string name="category_help">❓ 帮助</string>
+    <string name="category_help">帮助</string>
     <string name="title_setup_guide">安装向导</string>
     <string name="title_troubleshooting">解决方案向导</string>
     <string name="summary_troubleshooting">查看有关诊断和修复常见流传输问题的提示</string>
@@ -397,7 +408,7 @@
     <string name="perf_overlay_hostprocessinglatency">主机处理延迟最小值/最大值/平均值: %1$.1f/%2$.1f/%3$.1f ms</string>
     <string name="fps_suffix_fps">FPS</string>
     <string name="title_native_fps_dialog">原生 FPS 警告</string>
-    <string name="category_gamepad_settings">🎮 手柄设置</string>
+    <string name="category_gamepad_settings">手柄设置</string>
     <string name="title_checkbox_gamepad_touchpad_as_mouse">始终使用触摸板控制鼠标</string>
     <string name="summary_checkbox_gamepad_touchpad_as_mouse">强制使用手柄触摸板来控制主机鼠标，即使在使用触摸板模拟游戏板时也是如此。</string>
     <string name="title_checkbox_gamepad_motion_sensors">允许使用手柄的运动传感器</string>
@@ -424,7 +435,7 @@
     <string name="mic_permission_required">需要麦克风权限</string>
 
     <!-- Screen position settings -->
-    <string name="category_screen_position_settings">📱 显示设置</string>
+    <string name="category_screen_position_settings">显示设置</string>
     <string name="title_screen_position">画面位置</string>
     <string name="summary_screen_position">选择非全屏分辨率时画面的位置</string>
     <string name="title_screen_offset_x">水平偏移</string>
@@ -433,7 +444,7 @@
     <string name="summary_screen_offset_y">画面垂直方向的偏移量</string>
 
     <!-- Crown feature area -->
-    <string name="category_crown_features">👑 王冠的功能区</string>
+    <string name="category_crown_features">王冠的功能区</string>
     <string name="title_crown_super_features">王冠的超级功能</string>
     <string name="summary_crown_super_features">串流中自定义按键和一些设置，并将这些保存到自定义可快速切换的配置中</string>
     <string name="title_export_super_config">导出配置</string>
@@ -472,6 +483,8 @@
     <!-- Reverse resolution -->
     <string name="title_checkbox_reverse_resolution">反转分辨率</string>
     <string name="summary_checkbox_reverse_resolution">交换宽度和高度值，用于特殊显示需求</string>
+    <string name="title_checkbox_rotable_screen">跟随屏幕旋转</string>
+    <string name="summary_checkbox_rotable_screen">启用后，设备旋转时会同步调整显示方向</string>
 
     <!-- Moonlight V+ PC download -->
     <string name="title_moonlight_vplus_pc_download">Moonlight V+ PC版下载</string>
@@ -639,6 +652,8 @@
 
     <string name="game_menu_toggle_remote_mouse">显示/隐藏远程鼠标</string>
     <string name="toast_remote_mouse_toast">远程鼠标已显示/隐藏。</string>
+    <string name="notification_channel_name">串流后台服务</string>
+    <string name="notification_channel_desc">当 Moonlight 在后台运行时保持连接活跃</string>
 
     <!-- 输出缓冲区队列大小 -->
     <string name="title_seekbar_output_buffer_queue_limit">输出缓冲区队列大小</string>
@@ -657,4 +672,7 @@
     <string name="unpaired_devices_hidden">已隐藏未配对设备</string>
     <string name="new_unpaired_device_shown">检测到新的未配对设备，已自动显示未配对设备</string>
     <string name="host_resolution_changed">主机分辨率已变更为 %1$dx%2$d</string>
+
+    <string name="game_menu_change_resolution">更改分辨率</string>
+    <string name="notification_content_streaming">正在串流： %s (%s)</string>
 </resources>

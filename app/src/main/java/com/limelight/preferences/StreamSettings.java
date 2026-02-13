@@ -1,5 +1,6 @@
 package com.limelight.preferences;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -31,20 +32,14 @@ import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.Toast;
 import android.graphics.Color;
-import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.graphics.drawable.GradientDrawable;
-import android.util.TypedValue;
 import android.widget.ListView;
 import android.preference.PreferenceGroup;
-import android.widget.HorizontalScrollView;
-import android.widget.ScrollView;
-import com.google.android.flexbox.FlexboxLayout;
-import com.google.android.flexbox.FlexWrap;
-import com.google.android.flexbox.FlexDirection;
-import com.google.android.flexbox.JustifyContent;
 
 import androidx.annotation.NonNull;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.limelight.LimeLog;
 import com.limelight.PcView;
@@ -66,15 +61,24 @@ import java.util.*;
 
 public class StreamSettings extends Activity {
 
-
-
     private PreferenceConfiguration previousPrefs;
     private int previousDisplayPixelCount;
     private ExternalDisplayManager externalDisplayManager;
 
+    // 抽屉菜单相关
+    private DrawerLayout drawerLayout; // 竖屏时使用，横屏时为 null
+    private RecyclerView categoryList;
+    private CategoryAdapter categoryAdapter;
+    private List<CategoryItem> categories = new ArrayList<>();
+    private int selectedCategoryIndex = 0;
+
+    // 状态保存键
+    private static final String KEY_SELECTED_CATEGORY = "selected_category_index";
+
     // HACK for Android 9
     static DisplayCutout displayCutoutP;
 
+    @SuppressLint("SuspiciousIndentation")
     void reloadSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Display.Mode mode = getWindowManager().getDefaultDisplay().getMode();
@@ -110,6 +114,362 @@ public class StreamSettings extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
 
         UiHelper.notifyNewRootView(this);
+
+        // 恢复保存的状态（屏幕旋转时）
+        if (savedInstanceState != null) {
+            selectedCategoryIndex = savedInstanceState.getInt(KEY_SELECTED_CATEGORY, 0);
+        }
+
+        // 初始化抽屉菜单
+        initDrawerMenu();
+
+        // 设置版本号
+        setupVersionInfo();
+    }
+
+    /**
+     * 设置版本号显示
+     */
+    private void setupVersionInfo() {
+        TextView versionText = findViewById(R.id.drawer_version);
+        if (versionText != null) {
+            try {
+                String versionName = getPackageManager()
+                        .getPackageInfo(getPackageName(), 0).versionName;
+                versionText.setText("v" + versionName);
+            } catch (PackageManager.NameNotFoundException e) {
+                versionText.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    /**
+     * 初始化抽屉菜单
+     * 竖屏使用 DrawerLayout，横屏使用并排的 LinearLayout
+     */
+    private void initDrawerMenu() {
+        // 横屏时 drawer_layout 是 LinearLayout，不是 DrawerLayout
+        View rootView = findViewById(R.id.drawer_layout);
+        if (rootView instanceof DrawerLayout) {
+            drawerLayout = (DrawerLayout) rootView;
+        } else {
+            drawerLayout = null; // 横屏时为 null
+        }
+
+        categoryList = findViewById(R.id.category_list);
+
+        setupMenuToggle();
+        setupCategoryList();
+        setupDrawerListener();
+    }
+
+    /**
+     * 设置菜单按钮（仅竖屏有效）
+     */
+    private void setupMenuToggle() {
+        ImageView menuToggle = findViewById(R.id.settings_menu_toggle);
+        if (menuToggle != null) {
+            menuToggle.setOnClickListener(v -> openDrawer());
+            menuToggle.setFocusable(true);
+            menuToggle.setFocusableInTouchMode(false);
+        }
+    }
+
+    /**
+     * 设置分类列表
+     */
+    private void setupCategoryList() {
+        if (categoryList != null) {
+            categoryList.setLayoutManager(new LinearLayoutManager(this));
+            categoryAdapter = new CategoryAdapter();
+            categoryList.setAdapter(categoryAdapter);
+            categoryList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+            categoryList.setFocusable(true);
+        }
+    }
+
+    /**
+     * 设置抽屉监听器（仅竖屏有效）
+     */
+    private void setupDrawerListener() {
+        if (drawerLayout == null) return;
+
+        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
+            @Override
+            public void onDrawerOpened(View drawerView) {
+                focusSelectedCategory();
+            }
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                focusPreferenceList();
+            }
+        });
+    }
+
+    /**
+     * 打开抽屉（仅竖屏有效）
+     */
+    private void openDrawer() {
+        if (drawerLayout != null) {
+            drawerLayout.openDrawer(findViewById(R.id.drawer_menu));
+        }
+    }
+
+    /**
+     * 聚焦到选中的分类项
+     */
+    private void focusSelectedCategory() {
+        if (categoryList != null && categoryAdapter != null && categoryAdapter.getItemCount() > 0) {
+            categoryList.post(() -> {
+                RecyclerView.ViewHolder vh = categoryList.findViewHolderForAdapterPosition(selectedCategoryIndex);
+                if (vh != null && vh.itemView != null) {
+                    vh.itemView.requestFocus();
+                }
+            });
+        }
+    }
+
+    /**
+     * 聚焦到设置列表
+     */
+    private void focusPreferenceList() {
+        View preferenceContainer = findViewById(R.id.preference_container);
+        if (preferenceContainer != null) {
+            preferenceContainer.requestFocus();
+        }
+    }
+
+    /**
+     * dp 转 px
+     */
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density);
+    }
+
+    /**
+     * 分类数据项
+     */
+    static class CategoryItem {
+        String key;
+        String title;
+        String emoji;
+
+        CategoryItem(String key, String title, String emoji) {
+            this.key = key;
+            this.title = title;
+            this.emoji = emoji;
+        }
+    }
+
+    /**
+     * 获取分类对应的 emoji（每个分类唯一）
+     */
+    private static String getEmojiForCategory(String key) {
+        switch (key) {
+            case "category_basic_settings": return "⚙️";      // 基本设置
+            case "category_screen_position": return "📐";     // 屏幕位置
+            case "category_audio_settings": return "🔊";      // 音频
+            case "category_gamepad_settings": return "🎮";    // 手柄
+            case "category_input_settings": return "⌨️";      // 输入
+            case "category_enhanced_touch": return "👆";      // 触摸增强
+            case "category_onscreen_controls": return "🎛️";   // 屏幕控制
+            case "category_crown_features": return "👑";      // 皇冠功能
+            case "category_host_settings": return "🖥️";       // 主机
+            case "category_ui_settings": return "🎨";         // 界面
+            case "category_advanced_settings": return "🔧";   // 高级
+            case "category_help": return "❓";                // 帮助
+            default: return "📋";
+        }
+    }
+
+    /**
+     * 分类菜单适配器
+     */
+    class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ViewHolder> {
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            TextView title;
+            View indicator;
+            View root;
+
+            ViewHolder(View itemView) {
+                super(itemView);
+                root = itemView.findViewById(R.id.category_item_root);
+                title = itemView.findViewById(R.id.category_title);
+                indicator = itemView.findViewById(R.id.category_indicator);
+            }
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_category_menu, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            CategoryItem item = categories.get(position);
+            // 抽屉菜单显示 emoji + 标题
+            holder.title.setText(item.emoji + " " + item.title);
+
+            // 高亮选中项
+            boolean isSelected = position == selectedCategoryIndex;
+            updateItemAppearance(holder, isSelected, false);
+
+            // 点击事件
+            holder.root.setOnClickListener(v -> selectCategory(holder.getAdapterPosition(), item));
+
+            // 焦点变化事件（控制器支持）
+            holder.root.setOnFocusChangeListener((v, hasFocus) -> {
+                boolean selected = holder.getAdapterPosition() == selectedCategoryIndex;
+                updateItemAppearance(holder, selected, hasFocus);
+            });
+        }
+
+        /**
+         * 更新菜单项的外观（选中/焦点状态）- 精致风格
+         */
+        private void updateItemAppearance(ViewHolder holder, boolean isSelected, boolean hasFocus) {
+            // 使用项目公共粉色主题
+            int pinkPrimary = getResources().getColor(R.color.theme_pink_primary);    // #FF6B9D
+            int white = Color.WHITE;
+            int lightGray = Color.parseColor("#BBBBBB");
+            int dimGray = Color.parseColor("#888888");
+
+            // 指示器显示（小圆点）
+            holder.indicator.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
+
+            // 文字颜色和样式
+            if (isSelected) {
+                holder.title.setTextColor(white);
+                holder.title.setAlpha(1.0f);
+            } else if (hasFocus) {
+                holder.title.setTextColor(pinkPrimary);
+                holder.title.setAlpha(1.0f);
+            } else {
+                holder.title.setTextColor(lightGray);
+                holder.title.setAlpha(0.9f);
+            }
+
+            // 箭头透明度和颜色
+            ImageView arrow = holder.root.findViewById(R.id.category_arrow);
+            if (arrow != null) {
+                if (isSelected) {
+                    arrow.setAlpha(1.0f);
+                    arrow.setColorFilter(pinkPrimary);
+                } else if (hasFocus) {
+                    arrow.setAlpha(0.9f);
+                    arrow.setColorFilter(pinkPrimary);
+                } else {
+                    arrow.setAlpha(0.4f);
+                    arrow.setColorFilter(dimGray);
+                }
+            }
+        }
+
+        /**
+         * 选择分类
+         */
+        private void selectCategory(int position, CategoryItem item) {
+            if (position < 0 || position >= categories.size()) return;
+
+            int oldIndex = selectedCategoryIndex;
+            selectedCategoryIndex = position;
+
+            // 确保 oldIndex 有效再通知更新
+            if (oldIndex >= 0 && oldIndex < categories.size()) {
+                notifyItemChanged(oldIndex);
+            }
+            notifyItemChanged(selectedCategoryIndex);
+
+            // 滚动到对应分类
+            scrollToCategory(item.key);
+
+            // 竖屏时关闭抽屉（横屏时 drawerLayout 为 null，无需处理）
+            if (drawerLayout != null) {
+                drawerLayout.closeDrawers();
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return categories.size();
+        }
+    }
+
+    /**
+     * 滚动到指定分类
+     */
+    void scrollToCategory(String categoryKey) {
+        SettingsFragment fragment = (SettingsFragment) getFragmentManager()
+                .findFragmentById(R.id.preference_container);
+        if (fragment != null) {
+            fragment.scrollToCategoryByKey(categoryKey);
+        }
+    }
+
+    /**
+     * 通知 Activity 分类已加载
+     */
+    void onCategoriesLoaded(List<CategoryItem> loadedCategories) {
+        this.categories.clear();
+        this.categories.addAll(loadedCategories);
+
+        // 验证并校正 selectedCategoryIndex（屏幕旋转后恢复时可能越界）
+        if (selectedCategoryIndex >= categories.size()) {
+            selectedCategoryIndex = Math.max(0, categories.size() - 1);
+        }
+
+        if (categoryAdapter != null) {
+            categoryAdapter.notifyDataSetChanged();
+        }
+    }
+
+    /**
+     * 更新选中的分类
+     */
+    void updateSelectedCategory(int index) {
+        if (index != selectedCategoryIndex && index >= 0 && index < categories.size()) {
+            int oldIndex = selectedCategoryIndex;
+            selectedCategoryIndex = index;
+            if (categoryAdapter != null) {
+                // 确保 oldIndex 有效再通知更新
+                if (oldIndex >= 0 && oldIndex < categories.size()) {
+                    categoryAdapter.notifyItemChanged(oldIndex);
+                }
+                categoryAdapter.notifyItemChanged(selectedCategoryIndex);
+            }
+        }
+    }
+
+    /**
+     * 更新抽屉布局模式（仅竖屏有效）
+     * 横屏使用并排的 LinearLayout，不需要 DrawerLayout 操作
+     * 竖屏：默认关闭，可通过菜单按钮打开
+     */
+    private void updateDrawerMode() {
+        // 横屏时 drawerLayout 为 null（使用并排布局），直接返回
+        if (drawerLayout == null) return;
+
+        // 以下代码仅在竖屏时执行
+        View drawerMenu = findViewById(R.id.drawer_menu);
+        ImageView menuToggle = findViewById(R.id.settings_menu_toggle);
+
+        // 竖屏：可收起抽屉
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, drawerMenu);
+        drawerLayout.setScrimColor(0x99000000);
+
+        // 关闭抽屉
+        if (drawerLayout.isDrawerOpen(drawerMenu)) {
+            drawerLayout.closeDrawer(drawerMenu, false);
+        }
+
+        if (menuToggle != null) {
+            menuToggle.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override
@@ -127,12 +487,18 @@ public class StreamSettings extends Activity {
             }
         }
 
+        // 设置抽屉模式
+        updateDrawerMode();
+
         reloadSettings();
     }
 
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+
+        // 更新抽屉模式
+        updateDrawerMode();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Display.Mode mode = getWindowManager().getDefaultDisplay().getMode();
@@ -149,10 +515,109 @@ public class StreamSettings extends Activity {
     }
 
     @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+        if (handleDrawerKeyEvent(keyCode)) {
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * 处理控制器按键事件（抽屉导航）
+     *
+     * 手柄支持（仅竖屏有效，横屏时菜单固定显示）：
+     * - L1/L2：打开抽屉菜单
+     * - R1/R2：关闭抽屉菜单
+     * - D-pad 左：打开抽屉
+     * - D-pad 右：关闭抽屉（从抽屉内）
+     * - B 键：关闭抽屉
+     */
+    private boolean handleDrawerKeyEvent(int keyCode) {
+        // 横屏时 drawerLayout 为 null（使用并排布局），直接返回
+        if (drawerLayout == null) return false;
+
+        // 以下代码仅在竖屏时执行
+        View drawerMenu = findViewById(R.id.drawer_menu);
+        boolean isDrawerOpen = drawerLayout.isDrawerOpen(drawerMenu);
+
+        // L1/L2：打开抽屉
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_L1 ||
+            keyCode == android.view.KeyEvent.KEYCODE_BUTTON_L2) {
+            if (!isDrawerOpen) {
+                drawerLayout.openDrawer(drawerMenu);
+                return true;
+            }
+        }
+
+        // R1/R2：关闭抽屉
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_R1 ||
+            keyCode == android.view.KeyEvent.KEYCODE_BUTTON_R2) {
+            if (isDrawerOpen) {
+                drawerLayout.closeDrawer(drawerMenu);
+                return true;
+            }
+        }
+
+        // D-pad 左键：打开抽屉
+        if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (!isDrawerOpen) {
+                drawerLayout.openDrawer(drawerMenu);
+                return true;
+            }
+        }
+
+        // D-pad 右键：关闭抽屉（从抽屉内）
+        if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (isDrawerOpen) {
+                View focusedView = getCurrentFocus();
+                if (focusedView != null && isViewInsideDrawer(focusedView)) {
+                    drawerLayout.closeDrawer(drawerMenu);
+                    return true;
+                }
+            }
+        }
+
+        // B 键（手柄）：关闭抽屉
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_B) {
+            if (isDrawerOpen) {
+                drawerLayout.closeDrawer(drawerMenu);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查视图是否在抽屉内
+     */
+    private boolean isViewInsideDrawer(View view) {
+        View drawerMenu = findViewById(R.id.drawer_menu);
+        if (drawerMenu == null) return false;
+
+        View current = view;
+        while (current != null) {
+            if (current == drawerMenu) return true;
+            if (current.getParent() instanceof View) {
+                current = (View) current.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // 保存选中的分类索引，用于屏幕旋转后恢复
+        outState.putInt(KEY_SELECTED_CATEGORY, selectedCategoryIndex);
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        
-        // 清理外接显示器管理器
+
         if (externalDisplayManager != null) {
             externalDisplayManager.cleanup();
             externalDisplayManager = null;
@@ -160,16 +625,37 @@ public class StreamSettings extends Activity {
     }
 
     @Override
-    // NOTE: This will NOT be called on Android 13+ with android:enableOnBackInvokedCallback="true"
     public void onBackPressed() {
-        finish();
+        if (handleBackForDrawer()) {
+            return;
+        }
 
-        // Language changes are handled via configuration changes in Android 13+,
-        // so manual activity relaunching is no longer required.
+        finish();
+        handleLanguageChange();
+    }
+
+    /**
+     * 处理返回键时的抽屉关闭逻辑（仅竖屏有效）
+     */
+    private boolean handleBackForDrawer() {
+        // 横屏时 drawerLayout 为 null（使用并排布局），直接返回
+        if (drawerLayout == null) return false;
+
+        // 以下代码仅在竖屏时执行
+        View drawerMenu = findViewById(R.id.drawer_menu);
+        if (!drawerLayout.isDrawerOpen(drawerMenu)) return false;
+
+        drawerLayout.closeDrawer(drawerMenu);
+        return true;
+    }
+
+    /**
+     * 处理语言变更后的界面刷新（Android 13 以下）
+     */
+    private void handleLanguageChange() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             PreferenceConfiguration newPrefs = PreferenceConfiguration.readPreferences(this);
             if (!newPrefs.language.equals(previousPrefs.language)) {
-                // Restart the PC view to apply UI changes
                 Intent intent = new Intent(this, PcView.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent, null);
@@ -183,6 +669,12 @@ public class StreamSettings extends Activity {
         private boolean nativeFramerateShown = false;
 
         private String exportConfigString = null;
+
+        // 分类列表（用于抽屉菜单同步）
+        private final List<PreferenceCategory> categoryList = new ArrayList<>();
+        private int currentCategoryIndex = 0;
+        // 标记是否正在手动滚动（点击分类触发的滚动）
+        private boolean isManualScrolling = false;
 
         /**
          * 获取目标显示器（优先使用外接显示器）
@@ -404,141 +896,132 @@ public class StreamSettings extends Activity {
             super.onActivityCreated(savedInstanceState);
 
             Activity activity = getActivity();
-            if (activity == null) {
-                return;
-            }
+            if (activity == null || !(activity instanceof StreamSettings)) return;
 
-            // 1. 获取视图组件
-            LinearLayout navContainer = activity.findViewById(R.id.settings_nav_container);
-            FlexboxLayout navGridContainer = activity.findViewById(R.id.settings_nav_grid_container);
-            HorizontalScrollView navScroll = activity.findViewById(R.id.settings_nav_scroll);
-            ScrollView navGridScroll = activity.findViewById(R.id.settings_nav_grid_scroll);
-            ImageView toggleButton = activity.findViewById(R.id.settings_nav_toggle);
-
-            // 2. 安全检查
-            if (navContainer == null || navGridContainer == null || navScroll == null ||
-                navGridScroll == null || toggleButton == null) {
-                return;
-            }
-
-            // 3. 配置 Flexbox 自动换行
-            navGridContainer.setFlexWrap(FlexWrap.WRAP);
-            navGridContainer.setFlexDirection(FlexDirection.ROW);
-            navGridContainer.setJustifyContent(JustifyContent.FLEX_START);
-
-            // 4. 清空视图
-            navContainer.removeAllViews();
-            navGridContainer.removeAllViews();
-
+            StreamSettings settingsActivity = (StreamSettings) activity;
             PreferenceScreen screen = getPreferenceScreen();
-            if (screen == null) {
-                return;
-            }
+            if (screen == null) return;
 
-            final ImageView collapseBtn = new ImageView(activity);
-            collapseBtn.setImageResource(R.drawable.ic_list_view);
-            collapseBtn.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
-            collapseBtn.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            collapseBtn.setMinimumHeight(dpToPx(28));
-
-            GradientDrawable bgCollapse = new GradientDrawable();
-            bgCollapse.setColor(Color.parseColor("#33FFFFFF"));
-            bgCollapse.setCornerRadius(dpToPx(16));
-            collapseBtn.setBackground(bgCollapse);
-
-            FlexboxLayout.LayoutParams lpCollapse = new FlexboxLayout.LayoutParams(
-                    FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                    FlexboxLayout.LayoutParams.WRAP_CONTENT
-            );
-            int margin = dpToPx(6);
-            lpCollapse.setMargins(margin, margin, margin, margin);
-            collapseBtn.setLayoutParams(lpCollapse);
-
-            // 点击内部收起按钮 -> 切换回水平模式
-            collapseBtn.setOnClickListener(v -> {
-                navScroll.setVisibility(View.VISIBLE);
-                toggleButton.setVisibility(View.VISIBLE);
-                navGridScroll.setVisibility(View.GONE);
-            });
-
-            // 添加到网格的第一个位置
-            navGridContainer.addView(collapseBtn);
-
-            // 5. 循环添加普通分类按钮
+            // 收集所有分类
+            categoryList.clear();
+            List<CategoryItem> items = new ArrayList<>();
             for (int i = 0; i < screen.getPreferenceCount(); i++) {
                 Preference pref = screen.getPreference(i);
-                if (pref instanceof PreferenceCategory) {
-                    PreferenceCategory category = (PreferenceCategory) pref;
-                    if (category.getTitle() == null) {
-                        continue;
-                    }
+                if (!(pref instanceof PreferenceCategory)) continue;
 
-                    // --- 水平模式 Tab ---
-                    final TextView tabHorizontal = createTab(activity, category.getTitle().toString());
-                    LinearLayout.LayoutParams lpHorizontal = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    lpHorizontal.rightMargin = dpToPx(12);
-                    tabHorizontal.setLayoutParams(lpHorizontal);
-                    tabHorizontal.setOnClickListener(v -> scrollToCategory(category));
-                    navContainer.addView(tabHorizontal);
+                PreferenceCategory category = (PreferenceCategory) pref;
+                if (category.getTitle() == null) continue;
 
-                    // --- 网格模式 Tab ---
-                    final TextView tabGrid = createTab(activity, category.getTitle().toString());
-                    FlexboxLayout.LayoutParams lpFlex = new FlexboxLayout.LayoutParams(
-                            FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                            FlexboxLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    lpFlex.setMargins(margin, margin, margin, margin);
-                    tabGrid.setLayoutParams(lpFlex);
-                    tabGrid.setOnClickListener(v -> scrollToCategory(category));
-                    navGridContainer.addView(tabGrid);
-                }
+                String title = category.getTitle().toString();
+                String key = category.getKey() != null ? category.getKey() : "category_" + i;
+                String emoji = getEmojiForCategory(key);
+
+                categoryList.add(category);
+                items.add(new CategoryItem(key, title, emoji));
             }
 
-            // 6. 左侧固定按钮点击事件（只负责展开）
-            toggleButton.setOnClickListener(v -> {
-                // 切换到网格模式
-                navScroll.setVisibility(View.GONE);
-                toggleButton.setVisibility(View.GONE);
-                navGridScroll.setVisibility(View.VISIBLE);
+            // 通知 Activity 分类已加载
+            settingsActivity.onCategoriesLoaded(items);
+
+            // 添加滚动监听
+            new Handler().post(() -> {
+                View fragmentView = getView();
+                if (fragmentView != null) {
+                    ListView listView = fragmentView.findViewById(android.R.id.list);
+                    if (listView != null) {
+                        setupScrollListener(listView, settingsActivity);
+                    }
+                }
             });
         }
 
-        // 辅助方法：创建统一样式的 Tab (避免代码重复)
-        private TextView createTab(Activity activity, String text) {
-            TextView tab = new TextView(activity);
-            tab.setText(text);
-            tab.setTextColor(Color.WHITE);
-            tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-            tab.setSingleLine(true);
-            tab.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
-
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(Color.parseColor("#33FFFFFF"));
-            bg.setCornerRadius(dpToPx(16));
-            tab.setBackground(bg);
-            return tab;
+        /**
+         * 根据 key 滚动到指定分类
+         */
+        void scrollToCategoryByKey(String categoryKey) {
+            for (int i = 0; i < categoryList.size(); i++) {
+                PreferenceCategory category = categoryList.get(i);
+                String key = category.getKey() != null ? category.getKey() : "category_" + i;
+                if (key.equals(categoryKey)) {
+                    scrollToCategoryAtIndex(i);
+                    return;
+                }
+            }
         }
 
-        // 辅助方法：跳转
-        private void scrollToCategory(PreferenceCategory category) {
+        /**
+         * 滚动到指定索引的分类
+         */
+        private void scrollToCategoryAtIndex(int index) {
+            if (index < 0 || index >= categoryList.size()) return;
+
+            PreferenceCategory category = categoryList.get(index);
             int position = findAdapterPositionForPreference(category);
             if (position >= 0) {
+                isManualScrolling = true;
+                currentCategoryIndex = index;
+
                 ListView listView = null;
                 View fragmentView = getView();
                 if (fragmentView != null) {
                     listView = fragmentView.findViewById(android.R.id.list);
-                } else {
-                    Activity act = getActivity();
-                    if (act != null) {
-                        listView = act.findViewById(android.R.id.list);
-                    }
                 }
                 if (listView != null) {
-                    listView.smoothScrollToPositionFromTop(position, dpToPx(8));
+                    listView.smoothScrollToPositionFromTop(position, dpToPx(2));
                 }
+            }
+        }
+
+        /**
+         * 设置滚动监听
+         */
+        private void setupScrollListener(ListView listView, StreamSettings settingsActivity) {
+            listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                    if (scrollState == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+                        isManualScrolling = false;
+                        updateVisibleCategory((ListView) view, settingsActivity);
+                    }
+                }
+
+                @Override
+                public void onScroll(android.widget.AbsListView view, int firstVisibleItem,
+                                    int visibleItemCount, int totalItemCount) {
+                    if (!isManualScrolling) {
+                        updateVisibleCategory((ListView) view, settingsActivity);
+                    }
+                }
+            });
+            updateVisibleCategory(listView, settingsActivity);
+        }
+
+        /**
+         * 更新当前可见分类
+         */
+        private void updateVisibleCategory(ListView listView, StreamSettings settingsActivity) {
+            if (listView == null || categoryList.isEmpty()) return;
+
+            int firstVisiblePosition = listView.getFirstVisiblePosition();
+            int lastVisiblePosition = firstVisiblePosition + listView.getChildCount() - 1;
+
+            int newCategoryIndex = -1;
+            int categoryPosition = -1;
+
+            for (int i = 0; i < categoryList.size(); i++) {
+                PreferenceCategory category = categoryList.get(i);
+                int position = findAdapterPositionForPreference(category);
+
+                if (position >= 0 && position <= lastVisiblePosition &&
+                    (position >= firstVisiblePosition || position > categoryPosition)) {
+                    newCategoryIndex = i;
+                    categoryPosition = position;
+                }
+            }
+
+            if (newCategoryIndex >= 0 && newCategoryIndex != currentCategoryIndex) {
+                currentCategoryIndex = newCategoryIndex;
+                settingsActivity.updateSelectedCategory(currentCategoryIndex);
             }
         }
 
@@ -936,7 +1419,15 @@ public class StreamSettings extends Activity {
                 LimeLog.info("Excluding HDR toggle based on OS");
                 PreferenceCategory category =
                         (PreferenceCategory) findPreference("category_advanced_settings");
-                category.removePreference(findPreference("checkbox_enable_hdr"));
+                // 必须先移除依赖项，再移除被依赖的项，否则会崩溃
+                Preference hdrHighBrightnessPref = findPreference("checkbox_enable_hdr_high_brightness");
+                if (hdrHighBrightnessPref != null) {
+                    category.removePreference(hdrHighBrightnessPref);
+                }
+                Preference hdrPref = findPreference("checkbox_enable_hdr");
+                if (hdrPref != null) {
+                    category.removePreference(hdrPref);
+                }
             }
             else {
                 // 获取目标显示器的 HDR 能力（优先使用外接显示器）
@@ -955,20 +1446,82 @@ public class StreamSettings extends Activity {
                     }
                 }
 
+                // Check for HLG support as well
+                boolean foundHlg = false;
+                if (hdrCaps != null) {
+                    for (int hdrType : hdrCaps.getSupportedHdrTypes()) {
+                        if (hdrType == Display.HdrCapabilities.HDR_TYPE_HLG) {
+                            foundHlg = true;
+                            break;
+                        }
+                    }
+                }
+
+                PreferenceCategory category =
+                        (PreferenceCategory) findPreference("category_advanced_settings");
+                CheckBoxPreference hdrPref = (CheckBoxPreference) findPreference("checkbox_enable_hdr");
+                CheckBoxPreference hdrHighBrightnessPref = (CheckBoxPreference) findPreference("checkbox_enable_hdr_high_brightness");
+                ListPreference hdrModePref = (ListPreference) findPreference("list_hdr_mode");
+
                 if (!foundHdr10) {
                     LimeLog.info("Excluding HDR toggle based on display capabilities");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_advanced_settings");
-                    category.removePreference(findPreference("checkbox_enable_hdr"));
+                    // 必须先移除依赖项，再移除被依赖的项，否则会崩溃
+                    if (hdrModePref != null) {
+                        category.removePreference(hdrModePref);
+                    }
+                    if (hdrHighBrightnessPref != null) {
+                        category.removePreference(hdrHighBrightnessPref);
+                    }
+                    if (hdrPref != null) {
+                        category.removePreference(hdrPref);
+                    }
                 }
                 else if (PreferenceConfiguration.isShieldAtvFirmwareWithBrokenHdr()) {
                     LimeLog.info("Disabling HDR toggle on old broken SHIELD TV firmware");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_advanced_settings");
-                    CheckBoxPreference hdrPref = (CheckBoxPreference) category.findPreference("checkbox_enable_hdr");
-                    hdrPref.setEnabled(false);
-                    hdrPref.setChecked(false);
-                    hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    if (hdrPref != null) {
+                        hdrPref.setEnabled(false);
+                        hdrPref.setChecked(false);
+                        hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    }
+                    // 同时禁用 HDR 高亮度选项
+                    if (hdrHighBrightnessPref != null) {
+                        hdrHighBrightnessPref.setEnabled(false);
+                        hdrHighBrightnessPref.setChecked(false);
+                    }
+                    // 同时禁用 HDR 模式选项
+                    if (hdrModePref != null) {
+                        hdrModePref.setEnabled(false);
+                    }
+                }
+                else {
+                    // HDR is supported, configure the HDR mode preference
+                    if (hdrModePref != null) {
+                        // If HLG is not supported, remove it from the options
+                        if (!foundHlg) {
+                            LimeLog.info("Display does not support HLG, limiting to HDR10 only");
+                            // Keep only HDR10 option
+                            hdrModePref.setEntries(new CharSequence[]{getString(R.string.hdr_mode_hdr10)});
+                            hdrModePref.setEntryValues(new CharSequence[]{"1"});
+                            hdrModePref.setValue("1");
+                        }
+
+                        // Update summary to show current selection
+                        hdrModePref.setOnPreferenceChangeListener((preference, newValue) -> {
+                            String value = (String) newValue;
+                            ListPreference listPref = (ListPreference) preference;
+                            int index = listPref.findIndexOfValue(value);
+                            if (index >= 0) {
+                                preference.setSummary(listPref.getEntries()[index]);
+                            }
+                            return true;
+                        });
+
+                        // Set initial summary
+                        int index = hdrModePref.findIndexOfValue(hdrModePref.getValue());
+                        if (index >= 0) {
+                            hdrModePref.setSummary(hdrModePref.getEntries()[index]);
+                        }
+                    }
                 }
             }
 

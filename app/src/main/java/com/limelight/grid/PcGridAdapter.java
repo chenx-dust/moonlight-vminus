@@ -8,7 +8,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.AnimatedVectorDrawable;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -56,7 +58,14 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     private final Set<String> loadingUuids = Collections.synchronizedSet(new HashSet<>());
     
     // 控制是否显示未配对设备（默认显示）
-    private boolean showUnpairedDevices = true;
+    private boolean showUnpairedDevices;
+    
+    // 头像点击回调接口
+    public interface AvatarClickListener {
+        void onAvatarClick(ComputerDetails computer, View itemView);
+    }
+    
+    private AvatarClickListener avatarClickListener;
 
     public PcGridAdapter(Context context, PreferenceConfiguration prefs) {
         super(context, R.layout.pc_grid_item);
@@ -65,22 +74,49 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         this.sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         this.showUnpairedDevices = sharedPreferences.getBoolean(PREF_SHOW_UNPAIRED_DEVICES, true);
     }
+    
+    /**
+     * 设置头像点击监听器
+     */
+    public void setAvatarClickListener(AvatarClickListener listener) {
+        this.avatarClickListener = listener;
+    }
 
     public void updateLayoutWithPreferences(Context context, PreferenceConfiguration prefs) {
         setLayoutId(R.layout.pc_grid_item);
     }
 
-    private boolean loadFirstAppBoxArt(ImageView imgView, ComputerDetails computer) {
+    /**
+     * 加载主机的第一个应用封面作为头像
+     * @param imgView 图像视图
+     * @param computer 主机信息
+     * @param allowAsyncLoad 是否允许异步加载（离线主机只使用缓存，不触发新加载）
+     * @return 是否成功加载封面
+     */
+    private boolean loadFirstAppBoxArt(ImageView imgView, ComputerDetails computer, boolean allowAsyncLoad) {
         if (computer.uuid == null) {
             return false;
         }
 
+        // 首先检查内存缓存
         Bitmap cachedBitmap = boxArtCache.get(computer.uuid);
         if (cachedBitmap != null && !cachedBitmap.isRecycled()) {
             applyBoxArt(imgView, cachedBitmap);
             return true;
         }
 
+        // 离线主机：尝试从磁盘缓存加载（同步加载，因为不想触发网络请求）
+        if (!allowAsyncLoad) {
+            Bitmap diskCachedBitmap = loadBoxArtFromDiskCache(computer);
+            if (diskCachedBitmap != null) {
+                boxArtCache.put(computer.uuid, diskCachedBitmap);
+                applyBoxArt(imgView, diskCachedBitmap);
+                return true;
+            }
+            return false;
+        }
+
+        // 在线主机：如果正在加载中，返回 false
         if (loadingUuids.contains(computer.uuid)) {
             return false;
         }
@@ -88,6 +124,88 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         loadingUuids.add(computer.uuid);
         new LoadBoxArtTask(imgView, computer, context, this).execute();
         return false;
+    }
+    
+    /**
+     * 从磁盘缓存同步加载封面（用于离线主机）
+     */
+    private Bitmap loadBoxArtFromDiskCache(ComputerDetails computer) {
+        if (computer.uuid == null) {
+            return null;
+        }
+        return loadBoxArtFromDisk(context, computer.uuid, false);
+    }
+    
+    /**
+     * 从磁盘加载封面的通用方法
+     * @param ctx 上下文
+     * @param uuid 主机UUID
+     * @param useAdaptiveSampleSize 是否使用自适应采样大小（异步加载时使用，更精确但稍慢）
+     * @return 封面位图，失败返回null
+     */
+    private static Bitmap loadBoxArtFromDisk(Context ctx, String uuid, boolean useAdaptiveSampleSize) {
+        if (ctx == null || uuid == null) {
+            return null;
+        }
+        
+        try {
+            String rawAppList = CacheHelper.readInputStreamToString(
+                    CacheHelper.openCacheFileForInput(ctx.getCacheDir(), "applist", uuid));
+
+            if (rawAppList.isEmpty()) {
+                return null;
+            }
+
+            List<NvApp> appList = NvHTTP.getAppListByReader(new StringReader(rawAppList));
+            if (appList.isEmpty()) {
+                return null;
+            }
+
+            File cacheDir = ctx.getCacheDir();
+            for (NvApp app : appList) {
+                File boxArtFile = CacheHelper.openPath(false, cacheDir, "boxart", uuid, app.getAppId() + ".png");
+                if (!boxArtFile.exists() || boxArtFile.length() == 0) {
+                    continue;
+                }
+                
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                if (useAdaptiveSampleSize) {
+                    // 先获取图片尺寸
+                    options.inJustDecodeBounds = true;
+                    BitmapFactory.decodeFile(boxArtFile.getAbsolutePath(), options);
+                    options.inSampleSize = calculateSampleSize(options.outWidth, options.outHeight);
+                    options.inJustDecodeBounds = false;
+                } else {
+                    // 固定采样大小，更快
+                    options.inSampleSize = 2;
+                }
+                
+                Bitmap bitmap = BitmapFactory.decodeFile(boxArtFile.getAbsolutePath(), options);
+                if (bitmap != null) {
+                    LimeLog.info("Loaded box art from disk: " + app.getAppName());
+                    return bitmap;
+                }
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Failed to load disk cached box art: " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 计算合适的采样大小
+     */
+    private static int calculateSampleSize(int width, int height) {
+        int sampleSize = 1;
+        if (height > TARGET_SIZE || width > TARGET_SIZE) {
+            int halfHeight = height / 2;
+            int halfWidth = width / 2;
+            while ((halfHeight / sampleSize) >= TARGET_SIZE && (halfWidth / sampleSize) >= TARGET_SIZE) {
+                sampleSize *= 2;
+            }
+        }
+        return sampleSize;
     }
 
     private static void applyBoxArt(ImageView imgView, Bitmap bitmap) {
@@ -123,64 +241,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         @Override
         protected Bitmap doInBackground(Void... voids) {
             Context ctx = contextRef.get();
-            if (ctx == null || computer.uuid == null) {
-                return null;
-            }
-
-            try {
-                String rawAppList = CacheHelper.readInputStreamToString(
-                        CacheHelper.openCacheFileForInput(ctx.getCacheDir(), "applist", computer.uuid));
-
-                if (rawAppList == null || rawAppList.isEmpty()) {
-                    return null;
-                }
-
-                List<NvApp> appList = NvHTTP.getAppListByReader(new StringReader(rawAppList));
-                if (appList == null || appList.isEmpty()) {
-                    return null;
-                }
-
-                File cacheDir = ctx.getCacheDir();
-                for (NvApp app : appList) {
-                    Bitmap bitmap = loadBoxArtForApp(cacheDir, computer.uuid, app);
-                    if (bitmap != null) {
-                        LimeLog.info("Loaded box art for PC card: " + app.getAppName());
-                        return bitmap;
-                    }
-                }
-            } catch (Exception e) {
-                LimeLog.warning("Failed to load first app box art: " + e.getMessage());
-            }
-
-            return null;
-        }
-
-        private Bitmap loadBoxArtForApp(File cacheDir, String uuid, NvApp app) {
-            File boxArtFile = CacheHelper.openPath(false, cacheDir, "boxart", uuid, app.getAppId() + ".png");
-            if (!boxArtFile.exists() || boxArtFile.length() == 0) {
-                return null;
-            }
-
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(boxArtFile.getAbsolutePath(), options);
-
-            options.inSampleSize = calculateSampleSize(options.outWidth, options.outHeight);
-            options.inJustDecodeBounds = false;
-
-            return BitmapFactory.decodeFile(boxArtFile.getAbsolutePath(), options);
-        }
-
-        private int calculateSampleSize(int width, int height) {
-            int sampleSize = 1;
-            if (height > TARGET_SIZE || width > TARGET_SIZE) {
-                int halfHeight = height / 2;
-                int halfWidth = width / 2;
-                while ((halfHeight / sampleSize) >= TARGET_SIZE && (halfWidth / sampleSize) >= TARGET_SIZE) {
-                    sampleSize *= 2;
-                }
-            }
-            return sampleSize;
+            // 使用自适应采样大小，异步加载时可以更精确地控制质量
+            return loadBoxArtFromDisk(ctx, computer.uuid, true);
         }
 
         @Override
@@ -208,9 +270,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     
     /**
      * 重新排序列表（公开方法，用于电脑状态更新后重新排序）
-     * @return true 如果排序顺序真的改变了，false 如果顺序没有变化
      */
-    public boolean resort() {
+    public void resort() {
         // 保存排序前的顺序（通过 UUID 列表）
         List<String> beforeOrder = new ArrayList<>();
         for (PcView.ComputerObject obj : itemList) {
@@ -226,7 +287,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         
         // 检查排序后的顺序是否改变
         if (beforeOrder.size() != itemList.size()) {
-            return true; // 列表大小改变，肯定有变化
+            return; // 列表大小改变，肯定有变化
         }
         
         for (int i = 0; i < itemList.size(); i++) {
@@ -234,11 +295,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             String currentUuid = (obj != null && obj.details != null && obj.details.uuid != null) 
                     ? obj.details.uuid : "";
             if (!beforeOrder.get(i).equals(currentUuid)) {
-                return true; // 顺序改变了
+                return; // 顺序改变了
             }
         }
-        
-        return false; // 顺序没有改变
+
     }
 
     private void sortList() {
@@ -248,7 +308,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             boolean rhsIsAdd = isAddComputerCard(rhs);
             if (lhsIsAdd && !rhsIsAdd) return 1;
             if (!lhsIsAdd && rhsIsAdd) return -1;
-            if (lhsIsAdd && rhsIsAdd) return 0;
+            if (lhsIsAdd) return 0;
             
             // 在线设备排在离线设备前面
             boolean lhsOnline = lhs.details != null && lhs.details.state == ComputerDetails.State.ONLINE;
@@ -257,7 +317,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             if (!lhsOnline && rhsOnline) return 1;
             
             // 在在线设备中，已配对设备排在未配对设备前面
-            if (lhsOnline && rhsOnline) {
+            if (lhsOnline) {
                 boolean lhsUnpaired = isUnpairedComputer(lhs);
                 boolean rhsUnpaired = isUnpairedComputer(rhs);
                 if (lhsUnpaired && !rhsUnpaired) return 1;
@@ -265,7 +325,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             }
             
             // 同组内按名称排序
-            return lhs.details.name.toLowerCase().compareTo(rhs.details.name.toLowerCase());
+            if (lhs.details != null) {
+                return lhs.details.name.toLowerCase().compareTo(rhs.details.name.toLowerCase());
+            }
+            return 0;
         });
     }
     
@@ -292,8 +355,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 && obj.details.pairState == PairingManager.PairState.NOT_PAIRED;
     }
 
-    public boolean removeComputer(PcView.ComputerObject computer) {
-        return itemList.remove(computer);
+    public void removeComputer(PcView.ComputerObject computer) {
+        itemList.remove(computer);
     }
     
     /**
@@ -356,11 +419,20 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
     @Override
     public Object getItem(int i) {
-        return getFilteredItems().get(i);
+        List<PcView.ComputerObject> filtered = getFilteredItems();
+        if (i < 0 || i >= filtered.size()) {
+            return null;
+        }
+        return filtered.get(i);
     }
     
     @Override
     public View getView(int i, View convertView, ViewGroup viewGroup) {
+        List<PcView.ComputerObject> filtered = getFilteredItems();
+        if (i < 0 || i >= filtered.size()) {
+            return convertView != null ? convertView : inflater.inflate(R.layout.pc_grid_item, viewGroup, false);
+        }
+
         if (convertView == null) {
             convertView = inflater.inflate(R.layout.pc_grid_item, viewGroup, false);
         }
@@ -370,10 +442,44 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         TextView txtView = convertView.findViewById(R.id.grid_text);
         View spinnerView = convertView.findViewById(R.id.grid_spinner);
 
-        List<PcView.ComputerObject> filtered = getFilteredItems();
-        populateView(convertView, imgView, spinnerView, txtView, overlayView, filtered.get(i));
+        PcView.ComputerObject computer = filtered.get(i);
+        populateView(convertView, imgView, spinnerView, txtView, overlayView, computer);
+        
+        // 为可见的头像图片设置触摸监听器（仅对非添加卡片）
+        if (imgView != null) {
+            setupImageTouchListener(imgView, convertView, computer);
+        }
 
         return convertView;
+    }
+    
+    private void setupImageTouchListener(ImageView imageView, View itemView, PcView.ComputerObject computer) {
+        if (isAddComputerCard(computer) || avatarClickListener == null || computer.details == null) {
+            imageView.setOnTouchListener(null);
+            imageView.setClickable(false);
+            return;
+        }
+        
+        final ComputerDetails computerDetails = computer.details;
+        
+        GestureDetector gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                if (avatarClickListener != null) {
+                    avatarClickListener.onAvatarClick(computerDetails, itemView);
+                }
+                return true;
+            }
+            
+            @Override
+            public void onLongPress(MotionEvent e) {
+                itemView.performLongClick();
+            }
+        });
+        
+        imageView.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+        imageView.setClickable(true);
+        imageView.setFocusable(false);
     }
 
     @SuppressLint("SetTextI18n")
@@ -406,8 +512,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         boolean isUnknown = details.state == ComputerDetails.State.UNKNOWN;
         boolean isOffline = details.state == ComputerDetails.State.OFFLINE;
 
-        // 加载头像
-        boolean hasBoxArt = isOnline && details.uuid != null && loadFirstAppBoxArt(imgView, details);
+        // 加载头像 - 无论在线还是离线都尝试使用缓存的封面
+        boolean hasBoxArt = details.uuid != null && loadFirstAppBoxArt(imgView, details, isOnline);
         if (!hasBoxArt) {
             imgView.setImageResource(R.drawable.ic_computer);
             imgView.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -415,19 +521,20 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         imgView.setAlpha(isOnline ? ONLINE_ALPHA : OFFLINE_ALPHA);
 
         // 设置背景
-        int bgRes = (isOnline && details.hasMultipleAddresses())
+        parentView.setBackgroundResource(isOnline && details.hasMultipleAddresses()
                 ? R.drawable.pc_item_multiple_addresses_selector
-                : R.drawable.pc_item_selector;
-        parentView.setBackgroundResource(bgRes);
+                : R.drawable.pc_item_selector);
 
         // 处理加载动画：状态未知或正在加载 box art 时显示
-        // 注意：刚打开时电脑状态通常是 UNKNOWN，此时应该显示 spinner
         boolean isLoadingBoxArt = details.uuid != null && loadingUuids.contains(details.uuid);
-        boolean shouldShowSpinner = isUnknown || isLoadingBoxArt;
-        updateSpinner((ImageView) spinnerView, shouldShowSpinner);
+        updateSpinner((ImageView) spinnerView, isUnknown || isLoadingBoxArt);
 
-        // 设置文本
-        txtView.setText(details.name);
+        // 设置文本：如果版本号以"杂鱼"结尾，在主机名后面加 ⚡
+        String displayName = details.name;
+        if (isOnline && details.sunshineVersion != null && details.sunshineVersion.endsWith("杂鱼")) {
+            displayName += "⚡";
+        }
+        txtView.setText(displayName);
         txtView.setAlpha(isOffline ? 0.5f : 1.0f);
         txtView.setTextColor(isOffline ? OFFLINE_TEXT_COLOR : ONLINE_TEXT_COLOR);
 
@@ -469,4 +576,3 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         }
     }
 }
-

@@ -6,7 +6,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -18,8 +17,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.text.Html;
@@ -31,19 +28,21 @@ import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.advance_setting.ControllerManager;
 import com.limelight.binding.input.advance_setting.config.PageConfigController;
 import com.limelight.binding.input.advance_setting.element.ElementController;
-import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.input.KeyboardPacket;
+import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.KeyCodeMapper;
 
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
@@ -54,6 +53,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Objects;
 
 /**
  * 提供游戏流媒体进行中的选项菜单
@@ -79,6 +79,7 @@ public class GameMenu {
     private static final Map<String, Integer> ICON_MAP = new HashMap<>();
 
     static {
+        ICON_MAP.put("game_menu_change_resolution", R.drawable.ic_resolution_cute);
         ICON_MAP.put("game_menu_toggle_keyboard", R.drawable.ic_keyboard_cute);
         ICON_MAP.put("game_menu_toggle_performance_overlay", R.drawable.ic_performance_cute);
         ICON_MAP.put("game_menu_toggle_virtual_controller", R.drawable.ic_controller_cute);
@@ -292,15 +293,6 @@ public class GameMenu {
         } else {
             option.getRunnable().run();
         }
-    }
-
-    /**
-     * 切换增强触摸模式
-     */
-    private void toggleEnhancedTouch() {
-        game.prefConfig.enableEnhancedTouch = !game.prefConfig.enableEnhancedTouch;
-        String message = game.prefConfig.enableEnhancedTouch ? "增强式多点触控已开启" : "经典鼠标模式已开启";
-        Toast.makeText(game, message, Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -657,6 +649,103 @@ public class GameMenu {
     }
 
 
+    /**
+     * 显示分辨率选择菜单
+     */
+    private void showResolutionMenu() {
+        List<MenuOption> options = new ArrayList<>();
+
+        // 获取当前的分辨率字符串，用于标记
+        String currentResStr = game.prefConfig.width + "x" + game.prefConfig.height;
+
+        // 1. 添加预设分辨率
+        for (String res : PreferenceConfiguration.RESOLUTIONS) {
+            String label = res;
+            // 尝试简单的匹配标记
+            if (res.equals(currentResStr)) {
+                label += " (Current)";
+            }
+
+            final String targetRes = res;
+            options.add(new MenuOption(
+                    label,
+                    false,
+                    () -> changeResolution(targetRes),
+                    null,
+                    false
+            ));
+        }
+
+        // 2. 添加自定义分辨率
+        SharedPreferences customPrefs = game.getSharedPreferences("custom_resolutions", Context.MODE_PRIVATE);
+        Set<String> customResolutions = customPrefs.getStringSet("custom_resolutions", null);
+
+        if (customResolutions != null && !customResolutions.isEmpty()) {
+            List<String> sortedCustom = new ArrayList<>(customResolutions);
+            // 简单的分辨率排序
+            Collections.sort(sortedCustom, (s1, s2) -> {
+                String[] parts1 = s1.split("x");
+                String[] parts2 = s2.split("x");
+                if (parts1.length != 2 || parts2.length != 2) return s1.compareTo(s2);
+                try {
+                    int w1 = Integer.parseInt(parts1[0]);
+                    int h1 = Integer.parseInt(parts1[1]);
+                    int w2 = Integer.parseInt(parts2[0]);
+                    int h2 = Integer.parseInt(parts2[1]);
+
+                    if (w1 != w2) return Integer.compare(w1, w2);
+                    return Integer.compare(h1, h2);
+                } catch (NumberFormatException e) {
+                    return s1.compareTo(s2);
+                }
+            });
+
+            for (String res : sortedCustom) {
+                // 避免重复显示预设中已有的分辨率
+                boolean isPreset = false;
+                for (String preset : PreferenceConfiguration.RESOLUTIONS) {
+                    if (preset.equals(res)) {
+                        isPreset = true;
+                        break;
+                    }
+                }
+                if (isPreset) continue;
+
+                String label = res + " (Custom)";
+                if (res.equals(currentResStr)) {
+                    label += " (Current)";
+                }
+
+                final String targetRes = res;
+                options.add(new MenuOption(
+                        label,
+                        false,
+                        () -> changeResolution(targetRes),
+                        null,
+                        false
+                ));
+            }
+        }
+
+        showSubMenu("Change Resolution", options.toArray(new MenuOption[0]));
+    }
+
+    private void changeResolution(String resString) {
+        // 更新 SharedPreferences
+        android.preference.PreferenceManager.getDefaultSharedPreferences(game)
+                .edit()
+                .putString(PreferenceConfiguration.RESOLUTION_PREF_STRING, resString)
+                .apply();
+
+        Toast.makeText(game, "Resolution changed to " + resString + ". Restarting...", Toast.LENGTH_SHORT).show();
+
+        // 重启 Activity 以应用新配置
+        game.changeResolution();
+
+        if (activeDialog != null) {
+            activeDialog.dismiss();
+        }
+    }
 
     /**
      * 调整码率
@@ -808,9 +897,7 @@ public class GameMenu {
 
         new AlertDialog.Builder(game, R.style.AppDialogStyle)
                 .setTitle("卡片配置 Visible cards")
-                .setMultiChoiceItems(items, checked, (d, which, isChecked) -> {
-                    checked[which] = isChecked;
-                })
+                .setMultiChoiceItems(items, checked, (d, which, isChecked) -> checked[which] = isChecked)
                 .setPositiveButton("OK", (d, w) -> {
                     game.prefConfig.showBitrateCard = checked[0];
                     game.prefConfig.showGyroCard = checked[1];
@@ -821,7 +908,7 @@ public class GameMenu {
 
                     // Update UI within current dialog (刷新界面)
                     View root = activeCustomView != null ? activeCustomView :
-                            d instanceof AlertDialog ? ((AlertDialog) d).getOwnerActivity().findViewById(android.R.id.content) : null;
+                            d instanceof AlertDialog ? Objects.requireNonNull(((AlertDialog) d).getOwnerActivity()).findViewById(android.R.id.content) : null;
 
                     if (root != null) {
                         View bitrate = root.findViewById(R.id.bitrateAdjustmentContainer);
@@ -901,15 +988,13 @@ public class GameMenu {
                     String name = keyObject.optString("name");
                     JSONArray codesArray = keyObject.getJSONArray("data");
 
-                    if (codesArray != null) {
-                        short[] datas = new short[codesArray.length()];
-                        for (int j = 0; j < codesArray.length(); j++) {
-                            String code = codesArray.getString(j);
-                            // 解析 "0xXX" 格式的十六进制字符串
-                            datas[j] = (short) Integer.parseInt(code.substring(2), 16);
-                        }
-                        resultList.add(new CustomKeyData(name, datas));
+                    short[] datas = new short[codesArray.length()];
+                    for (int j = 0; j < codesArray.length(); j++) {
+                        String code = codesArray.getString(j);
+                        // 解析 "0xXX" 格式的十六进制字符串
+                        datas[j] = (short) Integer.parseInt(code.substring(2), 16);
                     }
+                    resultList.add(new CustomKeyData(name, datas));
                 }
             }
         } catch (Exception e) {
@@ -923,6 +1008,7 @@ public class GameMenu {
     /**
      * 设置自定义按键卡片
      */
+    @SuppressLint("UseCompatLoadingForDrawables")
     private void setupCustomKeysCard(View customView) {
         View cardContainer = customView.findViewById(R.id.customKeysCardContainer);
         LinearLayout listLayout = customView.findViewById(R.id.customKeysListLayout);
@@ -1034,6 +1120,7 @@ public class GameMenu {
     /**
      * 设置当前串流应用信息 (名字、HDR支持)
      */
+    @SuppressLint("SetTextI18n")
     private void setupAppNameDisplay(View customView) {
         try {
             // 获取当前串流应用的名字
@@ -1048,7 +1135,7 @@ public class GameMenu {
             // 如果获取失败，使用默认名字
             TextView appNameTextView = customView.findViewById(R.id.appNameTextView);
             if (appNameTextView != null) {
-                appNameTextView.setText("Moonlight V+");
+                appNameTextView.setText("Moonlight V-");
             }
         }
     }
@@ -1508,7 +1595,7 @@ public class GameMenu {
         });
 
         // 递归设置键盘监听器
-        setupCompactKeyboardListeners((ViewGroup) dialogView.findViewById(R.id.keyboard_drawing), keysDisplay);
+        setupCompactKeyboardListeners(dialogView.findViewById(R.id.keyboard_drawing), keysDisplay);
 
         // 保存按钮事件
         if (saveButton != null) {
@@ -1711,6 +1798,15 @@ public class GameMenu {
                 "game_menu_toggle_performance_overlay",
                 true,
                  true
+        ));
+
+        normalOptions.add(new MenuOption(
+                getString(R.string.game_menu_change_resolution),
+                false,
+                this::showResolutionMenu,
+                "game_menu_change_resolution",
+                true,
+                true
         ));
 
         // 只有在启用了虚拟手柄时才显示虚拟手柄切换选项

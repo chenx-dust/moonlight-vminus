@@ -28,9 +28,6 @@ import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
 import com.limelight.utils.AppSettingsManager;
-import com.limelight.LimeLog;
-import com.limelight.Game;
-import com.limelight.binding.PlatformBinding;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -85,7 +82,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     private boolean suspendGridUpdates;
     private boolean inForeground;
     private boolean showHiddenApps;
-    private HashSet<Integer> hiddenAppIds = new HashSet<>();
+    private final HashSet<Integer> hiddenAppIds = new HashSet<>();
     private int selectedPosition = -1; // 跟踪当前选中的位置
     private String computerName; // 存储计算机名称
 
@@ -109,7 +106,6 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
-    private final static int START_WITH_VDD = 3;
     private final static int START_WITH_QUIT = 4;
     private final static int VIEW_DETAILS_ID = 5;
     private final static int CREATE_SHORTCUT_ID = 6;
@@ -361,9 +357,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         displayRadioGroup = findViewById(R.id.displayRadioGroup);
 
         // Set up event listeners
-        useLastSettingsCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            appSettingsManager.setUseLastSettingsEnabled(isChecked);
-        });
+        useLastSettingsCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> appSettingsManager.setUseLastSettingsEnabled(isChecked));
 
         // Initialize selection indicator animator
         View selectionIndicator = findViewById(R.id.selectionIndicator);
@@ -410,14 +404,29 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             startActivity(intent);
         });
 
+        // Setup restore session button
+        ImageButton restoreSessionButton = findViewById(R.id.app_restoreSessionButton);
+        restoreSessionButton.setOnClickListener(v -> {
+            if (lastRunningAppId != 0) {
+                // Find the running app in the list
+                for (int i = 0; i < appGridAdapter.getCount(); i++) {
+                    AppObject app = (AppObject) appGridAdapter.getItem(i);
+                    if (app.app.getAppId() == lastRunningAppId) {
+                        startStreamWithLastSettingsIfEnabled(app);
+                        break;
+                    }
+                }
+            } else {
+                Toast.makeText(AppView.this, getResources().getString(R.string.no_online_computer_with_running_game), Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // Bind to the computer manager service
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
                 Service.BIND_AUTO_CREATE);
 
         // Delay checking displays to allow service connection to complete
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            checkDisplaysAndUpdateUI();
-        }, 500);
+        new Handler(Looper.getMainLooper()).postDelayed(this::checkDisplaysAndUpdateUI, 500);
     }
 
     private void updateHiddenApps(boolean hideImmediately) {
@@ -739,9 +748,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
         // 屏幕旋转后，延迟重新计算选中框位置，等待布局完成
         if (selectionAnimator != null && selectedPosition >= 0) {
-            recyclerView.post(() -> {
-                selectionAnimator.moveToPosition(selectedPosition, false);
-            });
+            recyclerView.post(() -> selectionAnimator.moveToPosition(selectedPosition, false));
         }
     }
 
@@ -892,7 +899,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
-        int position = -1;
+        int position;
         View targetView = null;
 
         ContextMenuInfo menuInfo = item.getMenuInfo();
@@ -1160,6 +1167,33 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         registerForContextMenu(rv);
     }
 
+    /**
+     * 将焦点设置到第一个应用上
+     */
+    private void focusFirstApp(RecyclerView rv) {
+        // 确保布局完成后再设置焦点
+        rv.post(() -> {
+            // 再次延迟，确保所有布局计算都已完成
+            rv.postDelayed(() -> {
+                if (appGridAdapter != null && appGridAdapter.getCount() > 0) {
+                    RecyclerView.ViewHolder holder = rv.findViewHolderForAdapterPosition(0);
+                    if (holder != null && holder.itemView != null) {
+                        // 确保itemView已经完成布局测量
+                        if (holder.itemView.getWidth() > 0 && holder.itemView.getHeight() > 0) {
+                            holder.itemView.requestFocus();
+                            // 触发选中状态变化
+                            AppObject app = (AppObject) appGridAdapter.getItem(0);
+                            handleSelectionChange(0, app);
+                        } else {
+                            // 如果布局还未完成，再次延迟
+                            rv.postDelayed(() -> focusFirstApp(rv), 50);
+                        }
+                    }
+                }
+            }, 100);
+        });
+    }
+
     private void setupBridgeAdapter(RecyclerView rv) {
         AdapterRecyclerBridge bridge = new AdapterRecyclerBridge(this, appGridAdapter);
         rv.setAdapter(bridge);
@@ -1189,14 +1223,24 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         // 设置预加载
         glm.setInitialPrefetchItemCount(4);
         
-        // 设置居中布局
-        setupCenterAlignment(rv, spanCount);
+        // 设置居中布局，并标记需要在布局完成后聚焦第一个应用
+        setupCenterAlignment(rv, spanCount, true);
     }
 
     /**
      * 设置RecyclerView的居中对齐
      */
     private void setupCenterAlignment(RecyclerView rv, int spanCount) {
+        setupCenterAlignment(rv, spanCount, false);
+    }
+
+    /**
+     * 设置RecyclerView的居中对齐
+     * @param rv RecyclerView
+     * @param spanCount 列数
+     * @param shouldFocusFirstApp 是否在布局完成后聚焦第一个应用
+     */
+    private void setupCenterAlignment(RecyclerView rv, int spanCount, boolean shouldFocusFirstApp) {
         rv.post(() -> {
             if (appGridAdapter == null) {
                 return;
@@ -1219,6 +1263,18 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             int totalWidth = actualItemSize * totalRows;
             int horizontalPadding = totalWidth < screenWidth ? (screenWidth - totalWidth) / 2 : 0;
             rv.setPadding(horizontalPadding, rv.getPaddingTop(), horizontalPadding, rv.getPaddingBottom());
+
+            // 如果需要聚焦第一个应用，等待布局完成后再设置焦点和聚焦框位置
+            if (shouldFocusFirstApp) {
+                rv.post(() -> {
+                    // 再次延迟，确保padding生效后布局完全完成
+                    rv.postDelayed(() -> {
+                        if (isFirstFocus && appGridAdapter != null && appGridAdapter.getCount() > 0) {
+                            focusFirstApp(rv);
+                        }
+                    }, 50);
+                });
+            }
         });
     }
 
@@ -1252,8 +1308,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
 
     private RecyclerView.OnScrollListener createScrollListener() {
         return new RecyclerView.OnScrollListener() {
-            private long lastUpdateTime = 0;
-            private static final long MIN_UPDATE_INTERVAL = 16; // 约60fps
+            // 约60fps
 
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
@@ -1274,7 +1329,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                lastUpdateTime = System.currentTimeMillis();
+                long lastUpdateTime = System.currentTimeMillis();
             }
         };
     }

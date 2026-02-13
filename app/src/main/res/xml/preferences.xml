@@ -67,11 +67,12 @@
             android:defaultValue="false" />
         <CheckBoxPreference
             android:key="checkbox_rotable_screen"
-            android:title="允许屏幕旋转"
-            android:summary="允许在串流时旋转屏幕（不会改变视频分辨率）"
+            android:title="@string/title_checkbox_rotable_screen"
+            android:summary="@string/summary_checkbox_rotable_screen"
             android:defaultValue="false" />
     </PreferenceCategory>
     <PreferenceCategory
+        android:key="category_screen_position"
         android:title="@string/category_screen_position_settings"
         android:icon="@drawable/ic_screen_position"
         android:layout="@layout/preference_category_material">
@@ -110,6 +111,7 @@
         
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_audio_settings"
+        android:key="category_audio_settings"
         android:layout="@layout/preference_category_material">
         <ListPreference
             android:key="list_audio_config"
@@ -191,6 +193,11 @@
             android:title="@string/title_checkbox_mouse_emulation"
             android:summary="@string/summary_checkbox_mouse_emulation"
             android:defaultValue="true" />
+        <CheckBoxPreference
+            android:key="checkbox_enable_start_key_menu"
+            android:title="@string/title_checkbox_enable_start_key_menu"
+            android:summary="@string/summary_checkbox_enable_start_key_menu"
+            android:defaultValue="true" />
         <ListPreference
             android:key="analog_scrolling"
             android:dependency="checkbox_mouse_emulation"
@@ -264,6 +271,21 @@
             android:title="显示一个本地光标"
             android:summary="显示一个本地光标，可通过触摸板模式控制光标"
             android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_special_key_map"
+            android:title="特殊按键映射"
+            android:summary="键盘Home键映射Esc键，Esc+数字键/符号映射F1到F12,Esc+Q键映射串流菜单,安卓截图键映射Windows截图,安卓上一首/播放暂停/下一首分别映射到F5/F10/F11。"
+            android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_mouse_middle"
+            android:title="修复鼠标中键"
+            android:summary="在一些设备上鼠标中键可能被识别为返回键，选中尝试修复此问题。"
+            android:defaultValue="true" />
+        <CheckBoxPreference
+            android:key="checkbox_mouse_wheel"
+            android:title="修复本地鼠标滚轮"
+            android:summary="在一些设备上使用本地鼠标滚轮可能产生触屏滑动事件，选中尝试修复此问题。"
+            android:defaultValue="true" />
         <CheckBoxPreference
             android:key="checkbox_sync_touch_event_with_display"
             android:title="@string/title_checkbox_sync_touch_event_with_display"
@@ -423,6 +445,7 @@
             />
     </PreferenceCategory>
     <PreferenceCategory 
+        android:key="category_crown_features"
         android:title="@string/category_crown_features"
         android:icon="@drawable/ic_enhance"
         android:layout="@layout/preference_category_material">
@@ -449,6 +472,7 @@
             android:summary="@string/summary_about_author" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_host_settings"
+        android:key="category_host_settings"
         android:layout="@layout/preference_category_material">
         <CheckBoxPreference
             android:key="checkbox_enable_sops"
@@ -502,6 +526,18 @@
             android:title="@string/title_checkbox_resume_stream"
             android:summary="@string/summary_checkbox_resume_stream"
             android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_extreme_resume"
+            android:title="不断开连接(实验性)"
+            android:dependency="checkbox_resume_stream"
+            android:summary="切换应用或锁屏时保持连接不断开，回到moonlight时可瞬间恢复。注意：后台挂起时仍会消耗流量和电量。(这是一个实验性功能，启用后可能会产生什么问题)"
+            android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_background_audio"
+            android:title="后台播放音频"
+            android:dependency="checkbox_extreme_resume"
+            android:summary="启用不断开连接后，切换到后台时是否需要播放音频"
+            android:defaultValue="false" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_advanced_settings"
         android:key="category_advanced_settings"
@@ -551,6 +587,14 @@
             android:title="@string/title_enable_hdr_high_brightness"
             android:summary="@string/summary_enable_hdr_high_brightness"
             android:defaultValue="false" />
+        <ListPreference
+            android:key="list_hdr_mode"
+            android:dependency="checkbox_enable_hdr"
+            android:title="@string/title_hdr_mode"
+            android:summary="@string/summary_hdr_mode"
+            android:entries="@array/hdr_mode_entries"
+            android:entryValues="@array/hdr_mode_values"
+            android:defaultValue="1" />
         <CheckBoxPreference
             android:key="checkbox_full_range"
             android:title="@string/title_full_range"
@@ -596,24 +640,5 @@
             android:summary="这会尝试利用 STUN 服务器获取被控端的公网访问方式，以便在离开局域网环境后继续连接。但此功能可能会导致无公网 IP 用户扫描变慢"
             android:defaultValue="false"/>
 
-    </PreferenceCategory>
-    <PreferenceCategory android:title="@string/category_help"
-        android:key="category_help"
-        android:layout="@layout/preference_category_material">
-        <!-- <com.limelight.preferences.WebLauncherPreference
-            android:title="@string/title_setup_guide"
-            android:summary="@string/summary_setup_guide"
-            url="https://github.com/moonlight-stream/moonlight-docs/wiki/Setup-Guide"/>
-        <com.limelight.preferences.WebLauncherPreference
-            android:title="@string/title_troubleshooting"
-            android:summary="@string/summary_troubleshooting"
-            url="https://github.com/moonlight-stream/moonlight-docs/wiki/Troubleshooting"/> -->
-        <com.limelight.preferences.WebLauncherPreference
-            android:title="@string/title_moonlight_vplus_pc_download"
-            url="https://github.com/qiin2333/moonlight-qt"/>
-        <com.limelight.preferences.WebLauncherPreference
-            android:title="@string/title_privacy_policy"
-            android:summary="@string/summary_privacy_policy"
-            url="https://github.com/chenx-dust/moonlight-vminus/blob/master/PRIVACY_POLICY.md"/>
     </PreferenceCategory>
 </PreferenceScreen>
