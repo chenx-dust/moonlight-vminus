@@ -91,7 +91,7 @@
     <string name="perf_overlay_dectime">平均解码时间： %1$.2f ms</string>
     <!-- AppList activity -->
     <string name="applist_connect_msg"> 正在连接电脑…… </string>
-    <string name="applist_menu_start_with_vdd"> 就是要用虚拟显示器～ </string>
+    <string name="applist_menu_start_with_vdd"> 虚拟显示器 </string>
     <string name="applist_menu_start_with_last_settings">使用上一次设置启动</string>
     <string name="applist_menu_resume"> 恢复串流 </string>
     <string name="applist_menu_quit"> 退出串流 </string>
@@ -359,7 +359,7 @@
 
     <!-- About dialog strings -->
     <string name="about_dialog_description">Moonlight V- 是专为 Foundation Sunshine 打造的增强客户端，为您带来极致的游戏串流体验。</string>
-    <string name="about_dialog_project_info">基于 Moonlight V- 开源项目，进行简化</string>
+    <string name="about_dialog_project_info">基于 Moonlight V+ 开源项目，进行简化</string>
     <string name="about_dialog_thanks">感谢您选择 Moonlight V-！如果觉得好用，欢迎在 GitHub 上点个 Star 支持我们 ⭐</string>
     <string name="about_dialog_github">GitHub</string>
     <string name="about_dialog_star">Star 项目</string>
@@ -453,8 +453,6 @@
     <string name="summary_import_super_config">导入自定义按钮的和串流内设置的配置文件</string>
     <string name="title_merge_super_config">合并配置</string>
     <string name="summary_merge_super_config">将新的配置的按键合并到现有配置中</string>
-    <string name="title_about_author">这是 V+ X 皇家版本</string>
-    <string name="summary_about_author">王冠的B站:西瓜hub，请关注TA， github: https://github.com/WACrown/moonlight-android</string>
 
     <!-- 王冠功能切换 -->
     <string name="crown_toggle_button">王冠</string>

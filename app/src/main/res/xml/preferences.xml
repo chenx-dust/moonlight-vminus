@@ -466,10 +466,6 @@
             android:key="merge_super_config"
             android:title="@string/title_merge_super_config"
             android:summary="@string/summary_merge_super_config" />
-        <Preference
-            android:key="about_author"
-            android:title="@string/title_about_author"
-            android:summary="@string/summary_about_author" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_host_settings"
         android:key="category_host_settings"

@@ -486,9 +486,7 @@
     <string name="summary_import_super_config">Import custom button and streaming settings configuration file</string>
     <string name="title_merge_super_config">Merge Configuration</string>
     <string name="summary_merge_super_config">Merge new configuration buttons into existing configuration</string>
-    <string name="title_about_author">This is V+ X Royal Edition</string>
-    <string name="summary_about_author">Crown\'s Bilibili: XiguaHub, please follow them. GitHub: https://github.com/WACrown/moonlight-android</string>
-    
+
     <!-- Crown feature toggle -->
     <string name="crown_toggle_button">Crown</string>
     <string name="crown_mode_normal">Normal Mode</string>
