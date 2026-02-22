@@ -1344,11 +1344,15 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         int dialogTheme = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
                 ? android.R.style.Theme_Material_Light_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
-        new AlertDialog.Builder(this, dialogTheme)
+        AlertDialog dialog = new AlertDialog.Builder(this, dialogTheme)
                 .setView(dialogView)
                 .setPositiveButton(R.string.about_dialog_github, (d, w) -> openUrl("https://github.com/chenx-dust/moonlight-vminus"))
                 .setNegativeButton(R.string.about_dialog_close, (d, w) -> d.dismiss())
-                .show();
+                .create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(R.drawable.app_dialog_bg_cute);
+        }
+        dialog.show();
     }
 
     @SuppressLint("DefaultLocale")

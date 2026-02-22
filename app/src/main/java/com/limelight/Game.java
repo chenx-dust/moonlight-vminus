@@ -149,7 +149,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private boolean twoFingerMoved = false;
     private float twoFingerStartX = 0, twoFingerStartY = 0;
     private static final int TWO_FINGER_TAP_THRESHOLD = 100;
-    private static final float TWO_FINGER_MOVE_THRESHOLD = 30f;
+    private static final float TWO_FINGER_MOVE_THRESHOLD = 40f;
 
     public static final int REFERENCE_HORIZ_RES = 1280;
     public static final int REFERENCE_VERT_RES = 720;
@@ -3518,6 +3518,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                                 twoFingerTapPending = false;
                                 twoFingerMoved = true;
                                 for (TouchContext touchContext : touchContextMap) {
+                                    touchContext.cancelTouch();
                                     touchContext.setPointerCount(event.getPointerCount() - 1);
                                 }
                                 return true;
