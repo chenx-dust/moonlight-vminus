@@ -412,7 +412,6 @@
     <string name="suffix_seekbar_flat_region_pixels">píxeles</string>
     <string name="suffix_seekbar_keyboard_toggle_fingers_native_touch"> </string>
     <string name="suffix_seekbar_mic_bitrate_kbps">kbps</string>
-    <string name="summary_about_author">Crown\'s Bilibili: XiguaHub, por favor síguelos. GitHub: https://github.com/WACrown/moonlight-android</string>
     <string name="summary_about_mode">Ver información de la aplicación y detalles del proyecto</string>
     <string name="summary_check_for_updates">Verificar si hay una nueva versión disponible</string>
     <string name="summary_checkbox_enable_enhanced_touch">	</string>
@@ -462,7 +461,6 @@
     <string name="tip_virtual_display">💡 Consejo: La función de pantalla virtual puede crear espacios de pantalla independientes, especialmente adecuada para escenarios de multi-tarea, haciendo la transmisión más flexible~</string>
     <string name="tip_volume_keys">💡 Consejo: Usar WiFi de 5GHz proporciona una mejor experiencia, ¡velocidades súper rápidas~</string>
     <string name="tip_wallpaper_change">💡 Consejo: La opción de API de fondo de pantalla puede establecer la API para fuentes de fondo de pantalla aleatorias, o una dirección de imagen única</string>
-    <string name="title_about_author">Esto es V+ X Royal Edition</string>
     <string name="title_about_mode">Acerca de</string>
     <string name="title_checkbox_enable_enhanced_touch">Habilitar toque mejorado</string>
     <string name="title_checkbox_enable_esc_menu">Permitir tecla ESC para abrir menú de retorno</string>
