@@ -236,15 +236,6 @@
             android:foregroundServiceType="mediaPlayback"
             android:stopWithTask="false" />
 
-        <!-- Download complete receiver for auto-update -->
-        <receiver
-            android:name=".utils.UpdateDownloadReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
-            </intent-filter>
-        </receiver>
-
         <activity
             android:name=".HelpActivity"
             android:resizeableActivity="true"
