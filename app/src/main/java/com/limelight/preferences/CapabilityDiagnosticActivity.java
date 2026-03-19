@@ -66,7 +66,7 @@ public class CapabilityDiagnosticActivity extends Activity {
         setContentView(R.layout.activity_capability_diagnostic);
 
         UiHelper.setLocale(this);
-        UiHelper.notifyNewRootView(this);
+        UiHelper.notifyNewRootView(this, true);
 
         container = findViewById(R.id.report_container);
         View copyButton = findViewById(R.id.btn_copy_report);

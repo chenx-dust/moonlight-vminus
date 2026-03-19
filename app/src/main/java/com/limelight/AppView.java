@@ -429,7 +429,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
             setShouldDockBigOverlays(false);
         }
 
-        UiHelper.notifyNewRootView(this);
+        UiHelper.notifyNewRootView(this, true);
 
         showHiddenApps = getIntent().getBooleanExtra(SHOW_HIDDEN_APPS_EXTRA, false);
         uuidString = getIntent().getStringExtra(UUID_EXTRA);

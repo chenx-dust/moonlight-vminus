@@ -189,6 +189,8 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
 
     @Override
     public void populateView(View parentView, ImageView imgView, View spinnerView, TextView txtView, ImageView overlayView, AppView.AppObject obj) {
+        ImageView appBackgroundImage = getActivity(context).findViewById(R.id.appBackgroundImage);
+
         // Let the cached asset loader handle it with callback
         loader.populateImageView(obj, imgView, txtView, false, () -> {
             try {
@@ -206,13 +208,18 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
                 System.out.println("缓存app icon时发生异常: " + obj.app.getAppName() + " - " + e.getMessage());
             }
         });
-
         if (obj.isRunning) {
             // Show the play button overlay
             overlayView.setImageResource(R.drawable.ic_play_cute);
             overlayView.setVisibility(View.VISIBLE);
+            // 使用更平滑的背景图片加载
+            loader.populateImageView(obj, appBackgroundImage, txtView, true);
         }
         else {
+            if (obj.app.getAppName().equalsIgnoreCase("desktop") && appBackgroundImage.getDrawable() == null) {
+                // 使用更平滑的背景图片加载
+                loader.populateImageView(obj, appBackgroundImage, txtView, true);
+            }
             overlayView.setVisibility(View.GONE);
         }
 

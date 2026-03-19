@@ -185,7 +185,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private boolean autoEnterPip = false;
     private boolean surfaceCreated = false;
     private boolean attemptedConnection = false;
-    private long streamStartTime;
     private int suppressPipRefCount = 0;
     private String pcName;
     private String appName;

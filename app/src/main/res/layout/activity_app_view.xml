@@ -7,6 +7,14 @@
     android:clipToPadding="false"
     tools:context=".AppView">
 
+    <!-- 背景图 -->
+    <ImageView
+        android:id="@+id/appBackgroundImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:alpha="0.33" />
+
     <!-- App 图标网格容器 -->
     <FrameLayout
         android:id="@+id/appFragmentContainer"
@@ -50,7 +58,6 @@
         android:id="@+id/topDropdownPanel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/topPanelToggle"
         android:layout_centerHorizontal="true"
         android:minWidth="200dp"
         android:orientation="vertical"

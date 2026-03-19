@@ -139,6 +139,11 @@ public class UiHelper {
 
     public static void notifyNewRootView(final Activity activity)
     {
+        notifyNewRootView(activity, false);
+    }
+
+    public static void notifyNewRootView(final Activity activity, boolean immersive)
+    {
         View rootView = activity.findViewById(android.R.id.content);
         UiModeManager modeMgr = (UiModeManager) activity.getSystemService(Context.UI_MODE_SERVICE);
 
@@ -175,10 +180,12 @@ public class UiHelper {
                 public WindowInsets onApplyWindowInsets(View view, WindowInsets windowInsets) {
                     // Use the tappable insets so we can draw under the status bar in gesture mode
                     Insets tappableInsets = windowInsets.getTappableElementInsets();
-                     view.setPadding(tappableInsets.left,
-                             tappableInsets.top,
-                             tappableInsets.right,
-                             0);
+                    if (!immersive) {
+                        view.setPadding(tappableInsets.left,
+                                tappableInsets.top,
+                                tappableInsets.right,
+                                0);
+                    }
 
                     // Show a translucent navigation bar if we can't tap there
                     if (tappableInsets.bottom != 0) {
