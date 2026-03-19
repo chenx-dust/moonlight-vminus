@@ -1,25 +1,30 @@
-package com.limelight;
+package com.limelight
 
-import java.io.IOException;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
+import java.io.IOException
+import java.util.logging.FileHandler
+import java.util.logging.Logger
 
-public class LimeLog {
-    private static final Logger LOGGER = Logger.getLogger(LimeLog.class.getName());
+object LimeLog {
+    private val LOGGER: Logger = Logger.getLogger(LimeLog::class.java.name)
 
-    public static void info(String msg) {
-        LOGGER.info(msg);
+    @JvmStatic
+    fun info(msg: String) {
+        LOGGER.info(msg)
     }
-    
-    public static void warning(String msg) {
-        LOGGER.warning(msg);
+
+    @JvmStatic
+    fun warning(msg: String) {
+        LOGGER.warning(msg)
     }
-    
-    public static void severe(String msg) {
-        LOGGER.severe(msg);
+
+    @JvmStatic
+    fun severe(msg: String) {
+        LOGGER.severe(msg)
     }
-    
-    public static void setFileHandler(String fileName) throws IOException {
-        LOGGER.addHandler(new FileHandler(fileName));
+
+    @JvmStatic
+    @Throws(IOException::class)
+    fun setFileHandler(fileName: String) {
+        LOGGER.addHandler(FileHandler(fileName))
     }
 }

@@ -1,71 +1,66 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.preference.Preference;
-import android.preference.PreferenceManager;
-import android.util.AttributeSet;
-import android.widget.Toast;
+import android.content.Context
+import android.content.Intent
+import android.preference.Preference
+import android.preference.PreferenceManager
+import android.util.AttributeSet
+import android.widget.Toast
 
-import com.limelight.LimeLog;
+import com.limelight.LimeLog
 
-import java.io.File;
+import java.io.File
 
 /**
  * 重置背景图片偏好设置类
  * 清除所有背景图片相关配置，恢复到默认的API图片
  */
-public class ResetBackgroundImagePreference extends Preference {
-    
-    // 自定义背景图片的文件名（用于删除文件）
-    private static final String BACKGROUND_FILE_NAME = "custom_background_image.png";
+class ResetBackgroundImagePreference : Preference {
 
-    public ResetBackgroundImagePreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
-    public ResetBackgroundImagePreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
 
-    @Override
-    protected void onClick() {
-        resetBackgroundImage();
+    override fun onClick() {
+        resetBackgroundImage()
     }
 
     /**
      * 重置背景图片配置
      */
-    private void resetBackgroundImage() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-        
+    private fun resetBackgroundImage() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+
         // 删除本地图片文件（如果存在）
         try {
-            File localImageFile = new File(getContext().getFilesDir(), BACKGROUND_FILE_NAME);
+            val localImageFile = File(context.filesDir, BACKGROUND_FILE_NAME)
             if (localImageFile.exists()) {
-                boolean deleted = localImageFile.delete();
+                val deleted = localImageFile.delete()
                 if (deleted) {
-                    LimeLog.info("Deleted local background image file");
+                    LimeLog.info("Deleted local background image file")
                 }
             }
-        } catch (Exception e) {
-            LimeLog.warning("Failed to delete local background image: " + e.getMessage());
+        } catch (e: Exception) {
+            LimeLog.warning("Failed to delete local background image: ${e.message}")
         }
-        
+
         // 清除所有背景图片相关配置
         prefs.edit()
             .putString("background_image_type", "default")
             .remove("background_image_url")
             .remove("background_image_local_path")
-            .apply();
-        
-        Toast.makeText(getContext(), "已恢复默认背景图片", Toast.LENGTH_SHORT).show();
-        LimeLog.info("Background image reset to default");
-        
+            .apply()
+
+        Toast.makeText(context, "已恢复默认背景图片", Toast.LENGTH_SHORT).show()
+        LimeLog.info("Background image reset to default")
+
         // 发送广播通知 PcView 更新背景图片
-        Intent broadcastIntent = new Intent("com.limelight.REFRESH_BACKGROUND_IMAGE");
-        getContext().sendBroadcast(broadcastIntent);
+        val broadcastIntent = Intent("com.limelight.REFRESH_BACKGROUND_IMAGE")
+        context.sendBroadcast(broadcastIntent)
+    }
+
+    companion object {
+        // 自定义背景图片的文件名（用于删除文件）
+        private const val BACKGROUND_FILE_NAME = "custom_background_image.png"
     }
 }
-

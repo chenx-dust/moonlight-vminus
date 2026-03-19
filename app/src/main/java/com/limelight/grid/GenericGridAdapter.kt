@@ -1,86 +1,73 @@
-package com.limelight.grid;
+package com.limelight.grid
 
-import android.content.Context;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
-import android.widget.TextView;
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.ImageView
+import android.widget.TextView
 
-import com.limelight.R;
+import com.limelight.R
 
-import java.util.ArrayList;
+abstract class GenericGridAdapter<T>(
+    @JvmField
+    protected val context: Context,
+    private var layoutId: Int
+) : BaseAdapter() {
 
-public abstract class GenericGridAdapter<T> extends BaseAdapter {
-    protected final Context context;
-    private int layoutId;
-    final ArrayList<T> itemList = new ArrayList<>();
-    private final LayoutInflater inflater;
+    @JvmField
+    val itemList = ArrayList<T>()
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+
     // Track a selected position for UI updates (some activities call setSelectedPosition)
-    protected int selectedPosition = -1;
+    @JvmField
+    protected var selectedPosition = -1
 
-    GenericGridAdapter(Context context, int layoutId) {
-        this.context = context;
-        this.layoutId = layoutId;
-
-        this.inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    }
-
-    public void setSelectedPosition(int pos) {
-        this.selectedPosition = pos;
+    fun setSelectedPosition(pos: Int) {
+        this.selectedPosition = pos
         // Let views refresh to reflect selection change if they care
-        notifyDataSetChanged();
+        notifyDataSetChanged()
     }
 
-    public int getSelectedPosition() {
-        return selectedPosition;
-    }
+    fun getSelectedPosition(): Int = selectedPosition
 
-    void setLayoutId(int layoutId) {
+    fun setLayoutId(layoutId: Int) {
         if (layoutId != this.layoutId) {
-            this.layoutId = layoutId;
-
+            this.layoutId = layoutId
             // Force the view to be redrawn with the new layout
-            notifyDataSetInvalidated();
+            notifyDataSetInvalidated()
         }
     }
 
-    public void clear() {
-        itemList.clear();
+    open fun clear() {
+        itemList.clear()
     }
 
-    @Override
-    public int getCount() {
-        return itemList.size();
-    }
+    override fun getCount(): Int = itemList.size
 
-    @Override
-    public Object getItem(int i) {
-        return itemList.get(i);
-    }
+    override fun getItem(i: Int): Any = itemList[i] as Any
 
-    @Override
-    public long getItemId(int i) {
-        return i;
-    }
+    override fun getItemId(i: Int): Long = i.toLong()
 
-    public abstract void populateView(View parentView, ImageView imgView, View spinnerView, TextView txtView, ImageView overlayView, T obj);
+    abstract fun populateView(parentView: View, imgView: ImageView?, spinnerView: View?, txtView: TextView?, overlayView: ImageView?, obj: T)
 
-    @Override
-    public View getView(int i, View convertView, ViewGroup viewGroup) {
-        if (convertView == null) {
-            convertView = inflater.inflate(layoutId, viewGroup, false);
+    override fun getView(i: Int, convertView: View?, viewGroup: ViewGroup?): View {
+        val view = convertView ?: inflater.inflate(layoutId, viewGroup, false)
+
+        // onCreateViewHolder may call getView(0) when itemList is empty just to inflate a layout.
+        // Guard against out-of-bounds access to avoid NPE/IndexOutOfBoundsException.
+        if (i < 0 || i >= itemList.size) {
+            return view
         }
 
-        ImageView imgView = convertView.findViewById(R.id.grid_image);
-        ImageView overlayView = convertView.findViewById(R.id.grid_overlay);
-        TextView txtView = convertView.findViewById(R.id.grid_text);
-        View spinnerView = convertView.findViewById(R.id.grid_spinner);
+        val imgView = view.findViewById<ImageView>(R.id.grid_image)
+        val overlayView = view.findViewById<ImageView>(R.id.grid_overlay)
+        val txtView = view.findViewById<TextView>(R.id.grid_text)
+        val spinnerView = view.findViewById<View>(R.id.grid_spinner)
 
-        populateView(convertView, imgView, spinnerView, txtView, overlayView, itemList.get(i));
+        populateView(view, imgView, spinnerView, txtView, overlayView, itemList[i])
 
-        return convertView;
+        return view
     }
 }

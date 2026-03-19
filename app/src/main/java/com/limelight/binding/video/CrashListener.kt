@@ -1,5 +1,5 @@
-package com.limelight.binding.video;
+package com.limelight.binding.video
 
-public interface CrashListener {
-    void notifyCrash(Exception e);
+interface CrashListener {
+    fun notifyCrash(e: Exception)
 }

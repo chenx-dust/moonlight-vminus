@@ -1,25 +1,25 @@
-package com.limelight.nvstream;
+package com.limelight.nvstream
 
-public interface NvConnectionListener {
-    void stageStarting(String stage);
-    void stageComplete(String stage);
-    void stageFailed(String stage, int portFlags, int errorCode);
-    
-    void connectionStarted();
-    void connectionTerminated(int errorCode);
-    void connectionStatusUpdate(int connectionStatus);
-    
-    void displayMessage(String message);
-    void displayTransientMessage(String message);
+interface NvConnectionListener {
+    fun stageStarting(stage: String)
+    fun stageComplete(stage: String)
+    fun stageFailed(stage: String, portFlags: Int, errorCode: Int)
 
-    void rumble(short controllerNumber, short lowFreqMotor, short highFreqMotor);
-    void rumbleTriggers(short controllerNumber, short leftTrigger, short rightTrigger);
+    fun connectionStarted()
+    fun connectionTerminated(errorCode: Int)
+    fun connectionStatusUpdate(connectionStatus: Int)
 
-    void setHdrMode(boolean enabled, byte[] hdrMetadata);
+    fun displayMessage(message: String)
+    fun displayTransientMessage(message: String)
 
-    void setMotionEventState(short controllerNumber, byte motionType, short reportRateHz);
+    fun rumble(controllerNumber: Short, lowFreqMotor: Short, highFreqMotor: Short)
+    fun rumbleTriggers(controllerNumber: Short, leftTrigger: Short, rightTrigger: Short)
 
-    void setControllerLED(short controllerNumber, byte r, byte g, byte b);
+    fun setHdrMode(enabled: Boolean, hdrMetadata: ByteArray?)
 
-    void onResolutionChanged(int width, int height);
+    fun setMotionEventState(controllerNumber: Short, motionType: Byte, reportRateHz: Short)
+
+    fun setControllerLED(controllerNumber: Short, r: Byte, g: Byte, b: Byte)
+
+    fun onResolutionChanged(width: Int, height: Int)
 }

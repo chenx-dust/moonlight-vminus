@@ -1,83 +1,75 @@
-package com.limelight.binding.input.driver;
+package com.limelight.binding.input.driver
 
-public abstract class AbstractController {
+abstract class AbstractController(
+    private val deviceId: Int,
+    private val listener: UsbDriverListener,
+    private val vendorId: Int,
+    private val productId: Int
+) {
+    @JvmField
+    protected var buttonFlags = 0
+    @JvmField
+    protected var supportedButtonFlags = 0
+    @JvmField
+    protected var leftTrigger = 0f
+    @JvmField
+    protected var rightTrigger = 0f
+    @JvmField
+    protected var rightStickX = 0f
+    @JvmField
+    protected var rightStickY = 0f
+    @JvmField
+    protected var leftStickX = 0f
+    @JvmField
+    protected var leftStickY = 0f
+    @JvmField
+    protected var capabilities: Short = 0
+    @JvmField
+    protected var type: Byte = 0
 
-    private final int deviceId;
-    private final int vendorId;
-    private final int productId;
+    fun getControllerId(): Int = deviceId
 
-    private UsbDriverListener listener;
+    fun getVendorId(): Int = vendorId
 
-    protected int buttonFlags, supportedButtonFlags;
-    protected float leftTrigger, rightTrigger;
-    protected float rightStickX, rightStickY;
-    protected float leftStickX, leftStickY;
-    protected short capabilities;
-    protected byte type;
+    fun getProductId(): Int = productId
 
-    public int getControllerId() {
-        return deviceId;
-    }
+    fun getSupportedButtonFlags(): Int = supportedButtonFlags
 
-    public int getVendorId() {
-        return vendorId;
-    }
+    fun getCapabilities(): Short = capabilities
 
-    public int getProductId() {
-        return productId;
-    }
+    fun getType(): Byte = type
 
-    public int getSupportedButtonFlags() {
-        return supportedButtonFlags;
-    }
-
-    public short getCapabilities() {
-        return capabilities;
-    }
-
-    public byte getType() {
-        return type;
-    }
-
-    protected void setButtonFlag(int buttonFlag, int data) {
+    protected fun setButtonFlag(buttonFlag: Int, data: Int) {
         if (data != 0) {
-            buttonFlags |= buttonFlag;
+            buttonFlags = buttonFlags or buttonFlag
+        } else {
+            buttonFlags = buttonFlags and buttonFlag.inv()
         }
-        else {
-            buttonFlags &= ~buttonFlag;
-        }
     }
 
-    protected void reportInput() {
-        listener.reportControllerState(deviceId, buttonFlags, leftStickX, leftStickY,
-                rightStickX, rightStickY, leftTrigger, rightTrigger);
+    protected fun reportInput() {
+        listener.reportControllerState(
+            deviceId, buttonFlags, leftStickX, leftStickY,
+            rightStickX, rightStickY, leftTrigger, rightTrigger
+        )
     }
 
-    public abstract boolean start();
-    public abstract void stop();
+    abstract fun start(): Boolean
+    abstract fun stop()
 
-    public AbstractController(int deviceId, UsbDriverListener listener, int vendorId, int productId) {
-        this.deviceId = deviceId;
-        this.listener = listener;
-        this.vendorId = vendorId;
-        this.productId = productId;
+    abstract fun rumble(lowFreqMotor: Short, highFreqMotor: Short)
+
+    abstract fun rumbleTriggers(leftTrigger: Short, rightTrigger: Short)
+
+    protected fun notifyDeviceRemoved() {
+        listener.deviceRemoved(this)
     }
 
-    public abstract void rumble(short lowFreqMotor, short highFreqMotor);
-
-    public abstract void rumbleTriggers(short leftTrigger, short rightTrigger);
-
-    protected void notifyDeviceRemoved() {
-        listener.deviceRemoved(this);
+    protected fun notifyDeviceAdded() {
+        listener.deviceAdded(this)
     }
 
-    protected void notifyDeviceAdded() {
-        listener.deviceAdded(this);
-    }
-
-    protected void notifyControllerMotion(byte motionType, float x, float y, float z) {
-        if (listener != null) {
-            listener.reportControllerMotion(deviceId, motionType, x, y, z);
-        }
+    protected fun notifyControllerMotion(motionType: Byte, x: Float, y: Float, z: Float) {
+        listener.reportControllerMotion(deviceId, motionType, x, y, z)
     }
 }

@@ -1,59 +1,50 @@
-package com.limelight.discovery;
+package com.limelight.discovery
 
-import java.util.List;
+import android.app.Service
+import android.content.Intent
+import android.os.Binder
+import android.os.Build
+import android.os.IBinder
 
-import com.limelight.nvstream.mdns.MdnsComputer;
-import com.limelight.nvstream.mdns.JmDNSDiscoveryAgent;
-import com.limelight.nvstream.mdns.MdnsDiscoveryAgent;
-import com.limelight.nvstream.mdns.MdnsDiscoveryListener;
-import com.limelight.nvstream.mdns.NsdManagerDiscoveryAgent;
+import com.limelight.nvstream.mdns.JmDNSDiscoveryAgent
+import com.limelight.nvstream.mdns.MdnsComputer
+import com.limelight.nvstream.mdns.MdnsDiscoveryAgent
+import com.limelight.nvstream.mdns.MdnsDiscoveryListener
+import com.limelight.nvstream.mdns.NsdManagerDiscoveryAgent
 
-import android.app.Service;
-import android.content.Intent;
-import android.os.Binder;
-import android.os.Build;
-import android.os.IBinder;
+class DiscoveryService : Service() {
 
-public class DiscoveryService extends Service {
+    private lateinit var discoveryAgent: MdnsDiscoveryAgent
+    private var boundListener: MdnsDiscoveryListener? = null
 
-    private MdnsDiscoveryAgent discoveryAgent;
-    private MdnsDiscoveryListener boundListener;
-
-    public class DiscoveryBinder extends Binder {
-        public void setListener(MdnsDiscoveryListener listener) {
-            boundListener = listener;
+    inner class DiscoveryBinder : Binder() {
+        fun setListener(listener: MdnsDiscoveryListener?) {
+            boundListener = listener
         }
 
-        public void startDiscovery(int queryIntervalMs) {
-            discoveryAgent.startDiscovery(queryIntervalMs);
+        fun startDiscovery(queryIntervalMs: Int) {
+            discoveryAgent.startDiscovery(queryIntervalMs)
         }
 
-        public void stopDiscovery() {
-            discoveryAgent.stopDiscovery();
+        fun stopDiscovery() {
+            discoveryAgent.stopDiscovery()
         }
 
-        public List<MdnsComputer> getComputerSet() {
-            return discoveryAgent.getComputerSet();
+        fun getComputerSet(): List<MdnsComputer> {
+            return discoveryAgent.computerSet
         }
     }
 
-    @Override
-    public void onCreate() {
-        MdnsDiscoveryListener listener = new MdnsDiscoveryListener() {
-            @Override
-            public void notifyComputerAdded(MdnsComputer computer) {
-                if (boundListener != null) {
-                    boundListener.notifyComputerAdded(computer);
-                }
+    override fun onCreate() {
+        val listener = object : MdnsDiscoveryListener {
+            override fun notifyComputerAdded(computer: MdnsComputer) {
+                boundListener?.notifyComputerAdded(computer)
             }
 
-            @Override
-            public void notifyDiscoveryFailure(Exception e) {
-                if (boundListener != null) {
-                    boundListener.notifyDiscoveryFailure(e);
-                }
+            override fun notifyDiscoveryFailure(e: Exception) {
+                boundListener?.notifyDiscoveryFailure(e)
             }
-        };
+        }
 
         // Prior to Android 14, NsdManager doesn't provide all the capabilities needed for parity
         // with jmDNS (specifically handling multiple addresses for a single service). There are
@@ -63,28 +54,25 @@ public class DiscoveryService extends Service {
         //
         // As such, we use the jmDNS-based MdnsDiscoveryAgent prior to Android 14 and NsdManager
         // on Android 14 and above.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            discoveryAgent = new JmDNSDiscoveryAgent(getApplicationContext(), listener);
-        }
-        else {
-            discoveryAgent = new NsdManagerDiscoveryAgent(getApplicationContext(), listener);
+        discoveryAgent = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            JmDNSDiscoveryAgent(applicationContext, listener)
+        } else {
+            NsdManagerDiscoveryAgent(applicationContext, listener)
         }
     }
 
-    private final DiscoveryBinder binder = new DiscoveryBinder();
+    private val binder = DiscoveryBinder()
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return binder;
+    override fun onBind(intent: Intent): IBinder {
+        return binder
     }
 
-    @Override
-    public boolean onUnbind(Intent intent) {
+    override fun onUnbind(intent: Intent): Boolean {
         // Stop any discovery session
-        discoveryAgent.stopDiscovery();
+        discoveryAgent.stopDiscovery()
 
         // Unbind the listener
-        boundListener = null;
-        return false;
+        boundListener = null
+        return false
     }
 }

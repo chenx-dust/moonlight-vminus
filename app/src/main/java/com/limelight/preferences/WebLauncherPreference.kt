@@ -1,44 +1,28 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.annotation.TargetApi;
-import android.content.Context;
-import android.os.Build;
-import android.preference.Preference;
-import android.util.AttributeSet;
+import android.content.Context
+import android.preference.Preference
+import android.util.AttributeSet
+import com.limelight.utils.HelpLauncher
 
-import com.limelight.utils.HelpLauncher;
+class WebLauncherPreference : Preference {
+    private lateinit var url: String
 
-public class WebLauncherPreference extends Preference {
-    private String url;
+    constructor(context: Context, attrs: AttributeSet, defStyleAttr: Int) :
+        super(context, attrs, defStyleAttr) { initialize(attrs) }
 
-    public WebLauncherPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        initialize(attrs);
+    constructor(context: Context, attrs: AttributeSet) :
+        super(context, attrs) { initialize(attrs) }
+
+    constructor(context: Context, attrs: AttributeSet, defStyleAttr: Int, defStyleRes: Int) :
+        super(context, attrs, defStyleAttr, defStyleRes) { initialize(attrs) }
+
+    private fun initialize(attrs: AttributeSet) {
+        url = attrs.getAttributeValue(null, "url")
+            ?: throw IllegalStateException("WebLauncherPreference must have 'url' attribute!")
     }
 
-    public WebLauncherPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        initialize(attrs);
-    }
-
-    public WebLauncherPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        initialize(attrs);
-    }
-
-    private void initialize(AttributeSet attrs) {
-        if (attrs == null) {
-            throw new IllegalStateException("WebLauncherPreference must have attributes!");
-        }
-
-        url = attrs.getAttributeValue(null, "url");
-        if (url == null) {
-            throw new IllegalStateException("WebLauncherPreference must have 'url' attribute!");
-        }
-    }
-
-    @Override
-    public void onClick() {
-        HelpLauncher.launchUrl(getContext(), url);
+    override fun onClick() {
+        HelpLauncher.launchUrl(context, url)
     }
 }

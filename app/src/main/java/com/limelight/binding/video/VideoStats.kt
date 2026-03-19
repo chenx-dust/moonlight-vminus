@@ -1,101 +1,99 @@
-package com.limelight.binding.video;
+package com.limelight.binding.video
 
-import android.os.SystemClock;
+import android.os.SystemClock
 
-class VideoStats {
+internal class VideoStats {
+    @JvmField var decoderTimeMs: Long = 0
+    @JvmField var totalTimeMs: Long = 0
+    @JvmField var totalFrames: Int = 0
+    @JvmField var totalFramesReceived: Int = 0
+    @JvmField var totalFramesRendered: Int = 0
+    @JvmField var frameLossEvents: Int = 0
+    @JvmField var framesLost: Int = 0
+    @JvmField var minHostProcessingLatency: Char = 0.toChar()
+    @JvmField var maxHostProcessingLatency: Char = 0.toChar()
+    @JvmField var totalHostProcessingLatency: Int = 0
+    @JvmField var framesWithHostProcessingLatency: Int = 0
+    @JvmField var measurementStartTimestamp: Long = 0
+    @JvmField var renderingTimeMs: Long = 0 // 渲染时间
 
-    long decoderTimeMs;
-    long totalTimeMs;
-    int totalFrames;
-    int totalFramesReceived;
-    int totalFramesRendered;
-    int frameLossEvents;
-    int framesLost;
-    char minHostProcessingLatency;
-    char maxHostProcessingLatency;
-    int totalHostProcessingLatency;
-    int framesWithHostProcessingLatency;
-    long measurementStartTimestamp;
-    public long renderingTimeMs;// 渲染时间
-
-    void add(VideoStats other) {
-        this.decoderTimeMs += other.decoderTimeMs;
-        this.totalTimeMs += other.totalTimeMs;
-        this.totalFrames += other.totalFrames;
-        this.totalFramesReceived += other.totalFramesReceived;
-        this.totalFramesRendered += other.totalFramesRendered;
-        this.frameLossEvents += other.frameLossEvents;
-        this.framesLost += other.framesLost;
+    fun add(other: VideoStats) {
+        decoderTimeMs += other.decoderTimeMs
+        totalTimeMs += other.totalTimeMs
+        totalFrames += other.totalFrames
+        totalFramesReceived += other.totalFramesReceived
+        totalFramesRendered += other.totalFramesRendered
+        frameLossEvents += other.frameLossEvents
+        framesLost += other.framesLost
 
         // 累加渲染时间
-        this.renderingTimeMs += other.renderingTimeMs;
+        renderingTimeMs += other.renderingTimeMs
 
-        if (this.minHostProcessingLatency == 0) {
-            this.minHostProcessingLatency = other.minHostProcessingLatency;
+        if (minHostProcessingLatency.code == 0) {
+            minHostProcessingLatency = other.minHostProcessingLatency
         } else {
-            this.minHostProcessingLatency = (char) Math.min(this.minHostProcessingLatency, other.minHostProcessingLatency);
+            minHostProcessingLatency = minOf(minHostProcessingLatency, other.minHostProcessingLatency)
         }
-        this.maxHostProcessingLatency = (char) Math.max(this.maxHostProcessingLatency, other.maxHostProcessingLatency);
-        this.totalHostProcessingLatency += other.totalHostProcessingLatency;
-        this.framesWithHostProcessingLatency += other.framesWithHostProcessingLatency;
+        maxHostProcessingLatency = maxOf(maxHostProcessingLatency, other.maxHostProcessingLatency)
+        totalHostProcessingLatency += other.totalHostProcessingLatency
+        framesWithHostProcessingLatency += other.framesWithHostProcessingLatency
 
-        if (this.measurementStartTimestamp == 0) {
-            this.measurementStartTimestamp = other.measurementStartTimestamp;
+        if (measurementStartTimestamp == 0L) {
+            measurementStartTimestamp = other.measurementStartTimestamp
         }
 
-        assert other.measurementStartTimestamp >= this.measurementStartTimestamp;
+        assert(other.measurementStartTimestamp >= measurementStartTimestamp)
     }
 
-    void copy(VideoStats other) {
-        this.decoderTimeMs = other.decoderTimeMs;
-        this.totalTimeMs = other.totalTimeMs;
-        this.totalFrames = other.totalFrames;
-        this.totalFramesReceived = other.totalFramesReceived;
-        this.totalFramesRendered = other.totalFramesRendered;
-        this.frameLossEvents = other.frameLossEvents;
-        this.framesLost = other.framesLost;
-        this.minHostProcessingLatency = other.minHostProcessingLatency;
-        this.maxHostProcessingLatency = other.maxHostProcessingLatency;
-        this.totalHostProcessingLatency = other.totalHostProcessingLatency;
-        this.framesWithHostProcessingLatency = other.framesWithHostProcessingLatency;
-        this.measurementStartTimestamp = other.measurementStartTimestamp;
+    fun copy(other: VideoStats) {
+        decoderTimeMs = other.decoderTimeMs
+        totalTimeMs = other.totalTimeMs
+        totalFrames = other.totalFrames
+        totalFramesReceived = other.totalFramesReceived
+        totalFramesRendered = other.totalFramesRendered
+        frameLossEvents = other.frameLossEvents
+        framesLost = other.framesLost
+        minHostProcessingLatency = other.minHostProcessingLatency
+        maxHostProcessingLatency = other.maxHostProcessingLatency
+        totalHostProcessingLatency = other.totalHostProcessingLatency
+        framesWithHostProcessingLatency = other.framesWithHostProcessingLatency
+        measurementStartTimestamp = other.measurementStartTimestamp
 
         // 复制渲染时间
-        this.renderingTimeMs = other.renderingTimeMs;
+        renderingTimeMs = other.renderingTimeMs
     }
 
-    void clear() {
-        this.decoderTimeMs = 0;
-        this.totalTimeMs = 0;
-        this.totalFrames = 0;
-        this.totalFramesReceived = 0;
-        this.totalFramesRendered = 0;
-        this.frameLossEvents = 0;
-        this.framesLost = 0;
-        this.minHostProcessingLatency = 0;
-        this.maxHostProcessingLatency = 0;
-        this.totalHostProcessingLatency = 0;
-        this.framesWithHostProcessingLatency = 0;
-        this.measurementStartTimestamp = 0;
-        this.renderingTimeMs = 0;
+    fun clear() {
+        decoderTimeMs = 0
+        totalTimeMs = 0
+        totalFrames = 0
+        totalFramesReceived = 0
+        totalFramesRendered = 0
+        frameLossEvents = 0
+        framesLost = 0
+        minHostProcessingLatency = 0.toChar()
+        maxHostProcessingLatency = 0.toChar()
+        totalHostProcessingLatency = 0
+        framesWithHostProcessingLatency = 0
+        measurementStartTimestamp = 0
+        renderingTimeMs = 0
     }
 
-    VideoStatsFps getFps() {
-        float elapsed = (SystemClock.uptimeMillis() - this.measurementStartTimestamp) / (float) 1000;
+    fun getFps(): VideoStatsFps {
+        val elapsed = (SystemClock.uptimeMillis() - measurementStartTimestamp) / 1000f
 
-        VideoStatsFps fps = new VideoStatsFps();
+        val fps = VideoStatsFps()
         if (elapsed > 0) {
-            fps.totalFps = this.totalFrames / elapsed;
-            fps.receivedFps = this.totalFramesReceived / elapsed;
-            fps.renderedFps = this.totalFramesRendered / elapsed;
+            fps.totalFps = totalFrames / elapsed
+            fps.receivedFps = totalFramesReceived / elapsed
+            fps.renderedFps = totalFramesRendered / elapsed
         }
-        return fps;
+        return fps
     }
 }
 
-class VideoStatsFps {
-
-    float totalFps;
-    float receivedFps;
-    float renderedFps;
+internal class VideoStatsFps {
+    @JvmField var totalFps: Float = 0f
+    @JvmField var receivedFps: Float = 0f
+    @JvmField var renderedFps: Float = 0f
 }

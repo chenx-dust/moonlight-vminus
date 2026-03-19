@@ -1,94 +1,84 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.preference.MultiSelectListPreference;
-import android.preference.PreferenceManager;
-import android.util.AttributeSet;
+import android.content.Context
+import android.content.SharedPreferences
+import android.preference.MultiSelectListPreference
+import android.preference.PreferenceManager
+import android.util.AttributeSet
 
-import com.limelight.R;
+import com.limelight.R
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+class PerfOverlayDisplayItemsPreference : MultiSelectListPreference {
 
-public class PerfOverlayDisplayItemsPreference extends MultiSelectListPreference {
-    
-    private static final String DEFAULT_ITEMS = "resolution,decoder,render_fps,network_latency,decode_latency,host_latency,packet_loss,battery";
-    
-    public PerfOverlayDisplayItemsPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        initialize();
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int)
+            : super(context, attrs, defStyleAttr, defStyleRes) { initialize() }
 
-    public PerfOverlayDisplayItemsPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        initialize();
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int)
+            : super(context, attrs, defStyleAttr) { initialize() }
 
-    public PerfOverlayDisplayItemsPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        initialize();
-    }
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) { initialize() }
 
-    public PerfOverlayDisplayItemsPreference(Context context) {
-        super(context);
-        initialize();
-    }
+    constructor(context: Context) : super(context) { initialize() }
 
-    private void initialize() {
-        setEntries(R.array.perf_overlay_display_items_names);
-        setEntryValues(R.array.perf_overlay_display_items_values);
-        
+    private fun initialize() {
+        setEntries(R.array.perf_overlay_display_items_names)
+        setEntryValues(R.array.perf_overlay_display_items_values)
+
         // 设置默认值（所有项目都默认选中）
-        String[] defaultValues = DEFAULT_ITEMS.split(",");
-        Set<String> defaultSet = new HashSet<>(Arrays.asList(defaultValues));
-        setDefaultValue(defaultSet);
+        val defaultValues = DEFAULT_ITEMS.split(",")
+        val defaultSet = HashSet(defaultValues)
+        setDefaultValue(defaultSet)
     }
 
-    @Override
-    protected void onAttachedToHierarchy(PreferenceManager preferenceManager) {
-        super.onAttachedToHierarchy(preferenceManager);
-        
+    override fun onAttachedToHierarchy(preferenceManager: PreferenceManager) {
+        super.onAttachedToHierarchy(preferenceManager)
+
         // 如果没有保存的值，设置默认值
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-        if (!prefs.contains(getKey())) {
-            String[] defaultValues = DEFAULT_ITEMS.split(",");
-            Set<String> defaultSet = new HashSet<>(Arrays.asList(defaultValues));
-            setValues(defaultSet);
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        if (!prefs.contains(key)) {
+            val defaultValues = DEFAULT_ITEMS.split(",")
+            val defaultSet = HashSet(defaultValues)
+            values = defaultSet
         }
     }
-    
-    /**
-     * 获取默认的显示项目
-     */
-    public static Set<String> getDefaultDisplayItems() {
-        String[] defaultValues = DEFAULT_ITEMS.split(",");
-        return new HashSet<>(Arrays.asList(defaultValues));
+
+    companion object {
+        private const val DEFAULT_ITEMS = "resolution,decoder,render_fps,network_latency,decode_latency,host_latency,packet_loss,battery"
+
+        /**
+         * 获取默认的显示项目
+         */
+        @JvmStatic
+        fun getDefaultDisplayItems(): Set<String> {
+            return HashSet(DEFAULT_ITEMS.split(","))
+        }
+
+        /**
+         * 检查特定项目是否被选中显示
+         */
+        @JvmStatic
+        fun isItemEnabled(context: Context, itemKey: String): Boolean {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+            val selectedItems = prefs.getStringSet("perf_overlay_display_items", getDefaultDisplayItems())
+            return selectedItems?.contains(itemKey) == true
+        }
+
+        /**
+         * 测试用：获取当前选中的所有显示项目
+         */
+        @JvmStatic
+        fun getSelectedItems(context: Context): Set<String>? {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+            return prefs.getStringSet("perf_overlay_display_items", getDefaultDisplayItems())
+        }
+
+        /**
+         * 测试用：手动设置显示项目
+         */
+        @JvmStatic
+        fun setDisplayItems(context: Context, items: Set<String>) {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+            prefs.edit().putStringSet("perf_overlay_display_items", items).apply()
+        }
     }
-    
-    /**
-     * 检查特定项目是否被选中显示
-     */
-    public static boolean isItemEnabled(Context context, String itemKey) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        Set<String> selectedItems = prefs.getStringSet("perf_overlay_display_items", getDefaultDisplayItems());
-        return selectedItems.contains(itemKey);
-    }
-    
-    /**
-     * 测试用：获取当前选中的所有显示项目
-     */
-    public static Set<String> getSelectedItems(Context context) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        return prefs.getStringSet("perf_overlay_display_items", getDefaultDisplayItems());
-    }
-    
-    /**
-     * 测试用：手动设置显示项目
-     */
-    public static void setDisplayItems(Context context, Set<String> items) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs.edit().putStringSet("perf_overlay_display_items", items).apply();
-    }
-} 
+}

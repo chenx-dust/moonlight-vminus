@@ -1,54 +1,54 @@
-package com.limelight.binding.audio;
+package com.limelight.binding.audio
 
-import com.limelight.LimeLog;
+import com.limelight.LimeLog
 
-public class OpusEncoder {
-    private long nativePtr;
-    private final int sampleRate;
-    private final int channels;
-    private final int bitrate;
-    
-    static {
-        System.loadLibrary("moonlight-core");
+class OpusEncoder(
+    private val sampleRate: Int,
+    private val channels: Int,
+    private val bitrate: Int
+) {
+    private var nativePtr: Long
+
+    companion object {
+        init {
+            System.loadLibrary("moonlight-core")
+        }
+
+        @JvmStatic
+        private external fun nativeInit(sampleRate: Int, channels: Int, bitrate: Int): Long
+
+        @JvmStatic
+        private external fun nativeEncode(handle: Long, pcmData: ByteArray, offset: Int, length: Int): ByteArray?
+
+        @JvmStatic
+        private external fun nativeDestroy(handle: Long)
     }
-    
-    public OpusEncoder(int sampleRate, int channels, int bitrate) {
-        this.sampleRate = sampleRate;
-        this.channels = channels;
-        this.bitrate = bitrate;
-        
-        nativePtr = nativeInit(sampleRate, channels, bitrate);
-        if (nativePtr == 0) {
-            throw new IllegalStateException("无法初始化Opus编码器");
+
+    init {
+        nativePtr = nativeInit(sampleRate, channels, bitrate)
+        if (nativePtr == 0L) {
+            throw IllegalStateException("无法初始化Opus编码器")
         }
     }
-    
-    public byte[] encode(byte[] pcmData, int offset, int length) {
-        if (nativePtr == 0) {
-            return null;
+
+    fun encode(pcmData: ByteArray, offset: Int, length: Int): ByteArray? {
+        if (nativePtr == 0L) {
+            return null
         }
-        
-        return nativeEncode(nativePtr, pcmData, offset, length);
+        return nativeEncode(nativePtr, pcmData, offset, length)
     }
-    
-    public synchronized void release() {
-        if (nativePtr != 0) {
-            nativeDestroy(nativePtr);
-            nativePtr = 0;
-        }
-    }
-    
-    @Override
-    protected void finalize() throws Throwable {
-        try {
-            release();
-        } finally {
-            super.finalize();
+
+    @Synchronized
+    fun release() {
+        if (nativePtr != 0L) {
+            nativeDestroy(nativePtr)
+            nativePtr = 0
         }
     }
-    
-    // 这些方法需要在原生代码中实现
-    private static native long nativeInit(int sampleRate, int channels, int bitrate);
-    private static native byte[] nativeEncode(long handle, byte[] pcmData, int offset, int length);
-    private static native void nativeDestroy(long handle);
+
+    @Suppress("removal")
+    @Throws(Throwable::class)
+    protected fun finalize() {
+        release()
+    }
 }

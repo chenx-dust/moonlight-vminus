@@ -1,39 +1,31 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.preference.Preference;
-import android.util.AttributeSet;
-import android.widget.Toast;
+import android.content.Context
+import android.content.SharedPreferences
+import android.preference.Preference
+import android.util.AttributeSet
+import android.widget.Toast
 
-import com.limelight.R;
+class ResetPerfOverlayPositionPreference : Preference {
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
+        super(context, attrs, defStyleAttr, defStyleRes)
 
-public class ResetPerfOverlayPositionPreference extends Preference {
-    
-    public ResetPerfOverlayPositionPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
+        super(context, attrs, defStyleAttr)
 
-    public ResetPerfOverlayPositionPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
+    constructor(context: Context, attrs: AttributeSet?) :
+        super(context, attrs)
 
-    public ResetPerfOverlayPositionPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
+    constructor(context: Context) :
+        super(context)
 
-    public ResetPerfOverlayPositionPreference(Context context) {
-        super(context);
-    }
+    override fun onClick() {
+        super.onClick()
 
-    @Override
-    protected void onClick() {
-        super.onClick();
-        
         // 清除自定义位置设置
-        SharedPreferences prefs = getContext().getSharedPreferences("performance_overlay", Context.MODE_PRIVATE);
-        prefs.edit().clear().apply();
-        
-        Toast.makeText(getContext(), "性能统计位置已重置", Toast.LENGTH_SHORT).show();
+        val prefs = context.getSharedPreferences("performance_overlay", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        Toast.makeText(context, "性能统计位置已重置", Toast.LENGTH_SHORT).show()
     }
-} 
+}

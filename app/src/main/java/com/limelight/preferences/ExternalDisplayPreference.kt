@@ -1,70 +1,65 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.res.TypedArray;
-import android.hardware.display.DisplayManager;
-import android.os.Build;
-import android.preference.CheckBoxPreference;
-import android.util.AttributeSet;
-import android.view.Display;
+import android.content.Context
+import android.hardware.display.DisplayManager
+import android.os.Build
+import android.preference.CheckBoxPreference
+import android.util.AttributeSet
+import android.view.Display
 
-import com.limelight.ExternalDisplayManager;
+import com.limelight.ExternalDisplayManager
 
 /**
  * 外接显示器状态偏好设置
  */
-public class ExternalDisplayPreference extends CheckBoxPreference {
+class ExternalDisplayPreference : CheckBoxPreference {
 
-    public ExternalDisplayPreference(Context context) {
-        super(context);
-        init(context);
+    constructor(context: Context) : super(context) {
+        init(context)
     }
 
-    public ExternalDisplayPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init(context);
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
+        init(context)
     }
 
-    public ExternalDisplayPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init(context);
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr) {
+        init(context)
     }
 
-    private void init(Context context) {
-        updateSummary();
+    private fun init(context: Context) {
+        updateSummary()
     }
 
-    @Override
-    protected void onAttachedToActivity() {
-        super.onAttachedToActivity();
-        updateSummary();
+    override fun onAttachedToActivity() {
+        super.onAttachedToActivity()
+        updateSummary()
     }
 
-    private void updateSummary() {
+    private fun updateSummary() {
         try {
-            if (ExternalDisplayManager.hasExternalDisplay(getContext())) {
+            if (ExternalDisplayManager.hasExternalDisplay(context)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                    DisplayManager displayManager = (DisplayManager) getContext().getSystemService(Context.DISPLAY_SERVICE);
+                    val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
                     if (displayManager != null) {
-                        Display[] displays = displayManager.getDisplays();
-                        for (Display display : displays) {
-                            if (display.getDisplayId() != Display.DEFAULT_DISPLAY) {
-                                setSummary("检测到外接显示器: " + display.getName() + " (ID: " + display.getDisplayId() + ")");
-                                setEnabled(true);
-                                return;
+                        val displays = displayManager.displays
+                        for (display in displays) {
+                            if (display.displayId != Display.DEFAULT_DISPLAY) {
+                                summary = "检测到外接显示器: ${display.name} (ID: ${display.displayId})"
+                                isEnabled = true
+                                return
                             }
                         }
                     }
                 }
             } else {
-                setSummary("未检测到外接显示器");
-                setEnabled(false);
-                setChecked(false);
+                summary = "未检测到外接显示器"
+                isEnabled = false
+                isChecked = false
             }
-        } catch (Exception e) {
-            setSummary("检测外接显示器失败: " + e);
-            setEnabled(false);
-            setChecked(false);
+        } catch (e: Exception) {
+            summary = "检测外接显示器失败: $e"
+            isEnabled = false
+            isChecked = false
         }
     }
-} 
+}

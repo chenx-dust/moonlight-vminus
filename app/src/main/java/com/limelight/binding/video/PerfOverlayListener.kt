@@ -1,8 +1,8 @@
-package com.limelight.binding.video;
+package com.limelight.binding.video
 
-public interface PerfOverlayListener {
-//    void onPerfUpdate(final String text);
-    void onPerfUpdateV(final PerformanceInfo performanceInfo);
-    void onPerfUpdateWG(final PerformanceInfo performanceInfo);
-    boolean isPerfOverlayVisible();
+interface PerfOverlayListener {
+//    fun onPerfUpdate(text: String)
+    fun onPerfUpdateV(performanceInfo: PerformanceInfo)
+    fun onPerfUpdateWG(performanceInfo: PerformanceInfo)
+    fun isPerfOverlayVisible(): Boolean
 }

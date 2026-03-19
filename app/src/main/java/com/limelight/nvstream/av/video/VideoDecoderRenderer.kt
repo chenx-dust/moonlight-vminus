@@ -1,26 +1,28 @@
-package com.limelight.nvstream.av.video;
+package com.limelight.nvstream.av.video
 
-public abstract class VideoDecoderRenderer {
-    public abstract int setup(int format, int width, int height, int redrawRate);
+abstract class VideoDecoderRenderer {
+    abstract fun setup(format: Int, width: Int, height: Int, redrawRate: Int): Int
 
-    public abstract void start();
+    abstract fun start()
 
-    public abstract void stop();
+    abstract fun stop()
 
     // This is called once for each frame-start NALU. This means it will be called several times
     // for an IDR frame which contains several parameter sets and the I-frame data.
-    public abstract int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
-                                         int frameNumber, int frameType, char frameHostProcessingLatency,
-                                         long receiveTimeUs, long enqueueTimeUs);
-    
-    public abstract void cleanup();
+    abstract fun submitDecodeUnit(
+        decodeUnitData: ByteArray, decodeUnitLength: Int, decodeUnitType: Int,
+        frameNumber: Int, frameType: Int, frameHostProcessingLatency: Char,
+        receiveTimeUs: Long, enqueueTimeUs: Long
+    ): Int
 
-    public abstract int getCapabilities();
+    abstract fun cleanup()
 
-    public abstract void setHdrMode(boolean enabled, byte[] hdrMetadata);
+    abstract fun getCapabilities(): Int
+
+    abstract fun setHdrMode(enabled: Boolean, hdrMetadata: ByteArray?)
 
     // Called when the host resolution changes (e.g., screen rotation)
-    public void onResolutionChanged(int width, int height) {
+    open fun onResolutionChanged(width: Int, height: Int) {
         // Default implementation does nothing
         // Subclasses can override to handle resolution changes
     }

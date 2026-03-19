@@ -1,48 +1,35 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.preference.ListPreference;
-import android.preference.PreferenceManager;
-import android.util.AttributeSet;
+import android.content.Context
+import android.preference.ListPreference
+import android.util.AttributeSet
 
-public class PerfOverlayOrientationPreference extends ListPreference {
-    
-    public PerfOverlayOrientationPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-    }
+class PerfOverlayOrientationPreference : ListPreference {
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
+        super(context, attrs, defStyleAttr, defStyleRes)
 
-    public PerfOverlayOrientationPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
+        super(context, attrs, defStyleAttr)
 
-    public PerfOverlayOrientationPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
+    constructor(context: Context, attrs: AttributeSet?) :
+        super(context, attrs)
 
-    public PerfOverlayOrientationPreference(Context context) {
-        super(context);
-    }
+    constructor(context: Context) :
+        super(context)
 
-    @Override
-    protected void onDialogClosed(boolean positiveResult) {
-        super.onDialogClosed(positiveResult);
-        
+    override fun onDialogClosed(positiveResult: Boolean) {
+        super.onDialogClosed(positiveResult)
+
         if (positiveResult) {
             // 当方向改变时，通知位置Preference更新选项
-            updatePositionPreference();
+            updatePositionPreference()
         }
     }
-    
-    private void updatePositionPreference() {
-        PreferenceManager preferenceManager = getPreferenceManager();
-        if (preferenceManager != null) {
-            DynamicPerfOverlayPositionPreference positionPref = 
-                (DynamicPerfOverlayPositionPreference) preferenceManager.findPreference("list_perf_overlay_position");
-            if (positionPref != null) {
-                positionPref.refreshEntries();
-            }
-        }
-    }
-    
 
-} 
+    private fun updatePositionPreference() {
+        val preferenceManager = preferenceManager ?: return
+        val positionPref = preferenceManager.findPreference("list_perf_overlay_position")
+                as? DynamicPerfOverlayPositionPreference
+        positionPref?.refreshEntries()
+    }
+}

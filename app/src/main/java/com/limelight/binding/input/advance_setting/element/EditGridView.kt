@@ -1,49 +1,53 @@
-package com.limelight.binding.input.advance_setting.element;
+package com.limelight.binding.input.advance_setting.element
 
-import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.view.View;
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.view.View
 
-public class EditGridView extends View {
+class EditGridView(context: Context) : View(context) {
 
-    private final static int minDisplayWidth = 3;
-    private Paint paint;
-    private int editGridWidth = 1;
+    private val paint = Paint().apply {
+        color = 0xFF00F5FF.toInt()
+        strokeWidth = 2f // 设置网格线宽为2像素
+    }
+    private var editGridWidth = 1
 
-    public EditGridView(Context context) {
-        super(context);
-        paint = new Paint();
-        paint.setColor(0xFF00F5FF);
-        paint.setStrokeWidth(2); // 设置网格线宽为2像素
-        this.setAlpha(0.4f);
+    init {
+        alpha = 0.4f
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        if (editGridWidth < minDisplayWidth) return;
-        drawGrid(canvas);
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (editGridWidth < MIN_DISPLAY_WIDTH) return
+        drawGrid(canvas)
     }
 
-    private void drawGrid(Canvas canvas) {
-        float width = getWidth();
-        float height = getHeight();
+    private fun drawGrid(canvas: Canvas) {
+        val width = width.toFloat()
+        val height = height.toFloat()
 
         // 绘制垂直线
-        for (float x = 0; x <= width; x += editGridWidth) {
-            canvas.drawLine(x, 0, x, height, paint);
+        var x = 0f
+        while (x <= width) {
+            canvas.drawLine(x, 0f, x, height, paint)
+            x += editGridWidth
         }
 
         // 绘制水平线
-        for (float y = 0; y <= height; y += editGridWidth) {
-            canvas.drawLine(0, y, width, y, paint);
+        var y = 0f
+        while (y <= height) {
+            canvas.drawLine(0f, y, width, y, paint)
+            y += editGridWidth
         }
     }
 
-    public void setEditGridWidth(int editGridWidth) {
-        this.editGridWidth = editGridWidth;
-        invalidate();
+    fun setEditGridWidth(editGridWidth: Int) {
+        this.editGridWidth = editGridWidth
+        invalidate()
     }
 
+    companion object {
+        private const val MIN_DISPLAY_WIDTH = 3
+    }
 }

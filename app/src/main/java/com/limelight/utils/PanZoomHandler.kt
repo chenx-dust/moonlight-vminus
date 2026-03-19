@@ -1,150 +1,156 @@
-package com.limelight.utils;
+package com.limelight.utils
 
-import android.content.Context;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
-import android.view.View;
+import android.content.Context
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
+import android.view.View
 
-import com.limelight.Game;
-import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.Game
+import com.limelight.preferences.PreferenceConfiguration
 
-public class PanZoomHandler {
-    static private final float MAX_SCALE = 10.0f;
+class PanZoomHandler(
+    context: Context,
+    private val game: Game,
+    private val streamView: View,
+    private val prefConfig: PreferenceConfiguration
+) {
+    private val scaleGestureDetector: ScaleGestureDetector
+    private val gestureDetector: GestureDetector
+    private var parent: View? = null
+    private var scaleFactor = 1.0f
+    private var childX = 0f
+    private var childY = 0f
+    private var parentWidth = 0f
+    private var parentHeight = 0f
+    private var childWidth = 0f
+    private var childHeight = 0f
 
-    private final Game game;
-    private final View streamView;
-    private final PreferenceConfiguration prefConfig;
-    private final ScaleGestureDetector scaleGestureDetector;
-    private final GestureDetector gestureDetector;
-    private View parent;
-    private float scaleFactor = 1.0f;
-    private float childX, childY = 0;
-    private float parentWidth, parentHeight = 0;
-    private float childWidth, childHeight = 0;
-
-    public PanZoomHandler(Context context, Game game, View streamView, PreferenceConfiguration prefConfig) {
-        this.game = game;
-        this.streamView = streamView;
-        this.prefConfig = prefConfig;
-        scaleGestureDetector = new ScaleGestureDetector(context, new ScaleListener());
-        gestureDetector = new GestureDetector(context, new GestureListener());
+    init {
+        scaleGestureDetector = ScaleGestureDetector(context, ScaleListener())
+        gestureDetector = GestureDetector(context, GestureListener())
 
         // Everything gets easier with 0,0 as the pivot point
-        streamView.setPivotX(0);
-        streamView.setPivotY(0);
+        streamView.pivotX = 0f
+        streamView.pivotY = 0f
     }
 
-    public void handleTouchEvent(MotionEvent motionEvent) {
-        scaleGestureDetector.onTouchEvent(motionEvent);
-        gestureDetector.onTouchEvent(motionEvent);
+    fun handleTouchEvent(motionEvent: MotionEvent) {
+        scaleGestureDetector.onTouchEvent(motionEvent)
+        gestureDetector.onTouchEvent(motionEvent)
     }
 
-    private void updateDimensions() {
-        childHeight = streamView.getHeight() * scaleFactor;
-        childWidth = streamView.getWidth() * scaleFactor;
-        parentWidth = parent.getWidth();
-        parentHeight = parent.getHeight();
+    private fun updateDimensions() {
+        childHeight = streamView.height * scaleFactor
+        childWidth = streamView.width * scaleFactor
+        parentWidth = parent!!.width.toFloat()
+        parentHeight = parent!!.height.toFloat()
     }
 
-    private void constrainToBounds() {
-        updateDimensions();
+    private fun constrainToBounds() {
+        updateDimensions()
 
         if (parentWidth >= childWidth) {
-            childX = (parentWidth - childWidth) / 2;
+            childX = (parentWidth - childWidth) / 2
         } else {
-            float boundaryX = parentWidth - childWidth;
-            childX = Math.max(boundaryX, Math.min(childX, 0));
+            val boundaryX = parentWidth - childWidth
+            childX = maxOf(boundaryX, minOf(childX, 0f))
         }
 
         if (parentHeight >= childHeight) {
-            childY = (parentHeight - childHeight) / 2;
+            childY = (parentHeight - childHeight) / 2
         } else {
-            float boundaryY = parentHeight - childHeight;
-            childY = Math.max(boundaryY, Math.min(childY, 0));
+            val boundaryY = parentHeight - childHeight
+            childY = maxOf(boundaryY, minOf(childY, 0f))
         }
 
-        streamView.setX(childX);
-        streamView.setY(childY);
+        streamView.x = childX
+        streamView.y = childY
     }
 
-    public void handleSurfaceChange() {
-        if (childWidth == 0 || parent == null) {
+    fun handleSurfaceChange() {
+        if (childWidth == 0f || parent == null) {
             // Retrieve parent, should handle both built-in display and external display
-            parent = (View)streamView.getParent();
-            return;
+            parent = streamView.parent as? View
+            return
         }
 
-        float prevChildWidth = childWidth;
-        float prevChildHeight = childHeight;
-        float prevParentWidth = parentWidth;
-        float prevParentHeight = parentHeight;
+        val prevChildWidth = childWidth
+        val prevChildHeight = childHeight
+        val prevParentWidth = parentWidth
+        val prevParentHeight = parentHeight
 
-        updateDimensions();
+        updateDimensions()
 
-        float viewScaleX = childWidth / prevChildWidth;
-        float viewScaleY = childHeight / prevChildHeight;
+        val viewScaleX = childWidth / prevChildWidth
+        val viewScaleY = childHeight / prevChildHeight
 
-        float dPivotX1 = childX - prevParentWidth / 2;
-        float dPivotY1 = childY - prevParentHeight / 2;
+        val dPivotX1 = childX - prevParentWidth / 2
+        val dPivotY1 = childY - prevParentHeight / 2
 
-        float dPivotX2 = dPivotX1 * viewScaleX;
-        float dPivotY2 = dPivotY1 * viewScaleY;
+        val dPivotX2 = dPivotX1 * viewScaleX
+        val dPivotY2 = dPivotY1 * viewScaleY
 
-        childX = dPivotX2 + parentWidth / 2;
-        childY = dPivotY2 + parentHeight / 2;
+        childX = dPivotX2 + parentWidth / 2
+        childY = dPivotY2 + parentHeight / 2
 
-        streamView.setX(childX);
-        streamView.setY(childY);
+        streamView.x = childX
+        streamView.y = childY
 
-        constrainToBounds();
+        constrainToBounds()
     }
 
-    private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            float newScaleFactor = scaleFactor * detector.getScaleFactor();
-            newScaleFactor = Math.max(1, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
+    private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            var newScaleFactor = scaleFactor * detector.scaleFactor
+            newScaleFactor = maxOf(1f, minOf(newScaleFactor, MAX_SCALE)) // Apply minimum scale
 
             // Calculate pivot point
-            float focusX = detector.getFocusX();
-            float focusY = detector.getFocusY();
+            val focusX = detector.focusX
+            val focusY = detector.focusY
 
-            float dPivotX = (childX - focusX) / scaleFactor * newScaleFactor;
-            float dPivotY = (childY - focusY) / scaleFactor * newScaleFactor;
+            val dPivotX = (childX - focusX) / scaleFactor * newScaleFactor
+            val dPivotY = (childY - focusY) / scaleFactor * newScaleFactor
 
-            childX = focusX + dPivotX;
-            childY = focusY + dPivotY;
+            childX = focusX + dPivotX
+            childY = focusY + dPivotY
 
-            scaleFactor = newScaleFactor;
+            scaleFactor = newScaleFactor
 
-            streamView.setScaleX(scaleFactor);
-            streamView.setScaleY(scaleFactor);
+            streamView.scaleX = scaleFactor
+            streamView.scaleY = scaleFactor
 
-            streamView.setX(childX);
-            streamView.setY(childY);
+            streamView.x = childX
+            streamView.y = childY
 
-            constrainToBounds();
-            return true;
+            constrainToBounds()
+            return true
         }
 
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-            game.updatePipAutoEnter();
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            game.updatePipAutoEnter()
         }
     }
 
-    private class GestureListener extends GestureDetector.SimpleOnGestureListener {
-        @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            childX = streamView.getX() - distanceX;
-            childY = streamView.getY() - distanceY;
+    private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
+        override fun onScroll(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            distanceX: Float,
+            distanceY: Float
+        ): Boolean {
+            childX = streamView.x - distanceX
+            childY = streamView.y - distanceY
 
-            streamView.setX(childX);
-            streamView.setY(childY);
+            streamView.x = childX
+            streamView.y = childY
 
-            constrainToBounds();
-            return true;
+            constrainToBounds()
+            return true
         }
+    }
+
+    companion object {
+        private const val MAX_SCALE = 10.0f
     }
 }

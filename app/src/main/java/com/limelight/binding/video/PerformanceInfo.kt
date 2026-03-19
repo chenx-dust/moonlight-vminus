@@ -1,25 +1,24 @@
-package com.limelight.binding.video;
+package com.limelight.binding.video
 
-import android.content.Context;
+import android.content.Context
 
-public class PerformanceInfo {
-
-    public Context context;
-    public String decoder;
-    public int initialWidth;
-    public int initialHeight;
-    public float totalFps;
-    public float receivedFps;
-    public float renderedFps;
-    public float lostFrameRate;
-    public long rttInfo;
-    public int framesWithHostProcessingLatency;
-    public float minHostProcessingLatency;
-    public float maxHostProcessingLatency;
-    public float aveHostProcessingLatency;
-    public float decodeTimeMs;
-    public float totalTimeMs;
-    public String bandWidth;
-    public boolean isHdrActive; // 实际HDR激活状态
-    public float renderingLatencyMs; // 渲染时间
+class PerformanceInfo {
+    @JvmField var context: Context? = null
+    @JvmField var decoder: String? = null
+    @JvmField var initialWidth: Int = 0
+    @JvmField var initialHeight: Int = 0
+    @JvmField var totalFps: Float = 0f
+    @JvmField var receivedFps: Float = 0f
+    @JvmField var renderedFps: Float = 0f
+    @JvmField var lostFrameRate: Float = 0f
+    @JvmField var rttInfo: Long = 0
+    @JvmField var framesWithHostProcessingLatency: Int = 0
+    @JvmField var minHostProcessingLatency: Float = 0f
+    @JvmField var maxHostProcessingLatency: Float = 0f
+    @JvmField var aveHostProcessingLatency: Float = 0f
+    @JvmField var decodeTimeMs: Float = 0f
+    @JvmField var totalTimeMs: Float = 0f
+    @JvmField var bandWidth: String? = null
+    @JvmField var isHdrActive: Boolean = false // 实际HDR激活状态
+    @JvmField var renderingLatencyMs: Float = 0f // 渲染时间
 }

@@ -1,58 +1,55 @@
-package com.limelight.binding.input.evdev;
+package com.limelight.binding.input.evdev
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import com.limelight.LimeLog
+import java.io.IOException
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
-import com.limelight.LimeLog;
+object EvdevReader {
+    @Throws(IOException::class)
+    private fun readAll(input: InputStream, bb: ByteBuffer) {
+        val buf = bb.array()
+        var offset = 0
 
-public class EvdevReader {
-    private static void readAll(InputStream in, ByteBuffer bb) throws IOException {
-        byte[] buf = bb.array();
-        int ret;
-        int offset = 0;
-
-        while (offset < buf.length) {
-            ret = in.read(buf, offset, buf.length-offset);
+        while (offset < buf.size) {
+            val ret = input.read(buf, offset, buf.size - offset)
             if (ret <= 0) {
-                throw new IOException("Read failed: "+ret);
+                throw IOException("Read failed: $ret")
             }
-
-            offset += ret;
+            offset += ret
         }
     }
 
     // Takes a byte buffer to use to read the output into.
     // This buffer MUST be in native byte order and at least
     // EVDEV_MAX_EVENT_SIZE bytes long.
-    public static EvdevEvent read(InputStream input) throws IOException {
-        ByteBuffer bb;
-        int packetLength;
-
+    @JvmStatic
+    @Throws(IOException::class)
+    fun read(input: InputStream): EvdevEvent? {
         // Read the packet length
-        bb = ByteBuffer.allocate(4).order(ByteOrder.nativeOrder());
-        readAll(input, bb);
-        packetLength = bb.getInt();
+        var bb = ByteBuffer.allocate(4).order(ByteOrder.nativeOrder())
+        readAll(input, bb)
+        val packetLength = bb.getInt()
 
         if (packetLength < EvdevEvent.EVDEV_MIN_EVENT_SIZE) {
-            LimeLog.warning("Short read: "+packetLength);
-            return null;
+            LimeLog.warning("Short read: $packetLength")
+            return null
         }
 
         // Read the rest of the packet
-        bb = ByteBuffer.allocate(packetLength).order(ByteOrder.nativeOrder());
-        readAll(input, bb);
+        bb = ByteBuffer.allocate(packetLength).order(ByteOrder.nativeOrder())
+        readAll(input, bb)
 
         // Throw away the time stamp
         if (packetLength == EvdevEvent.EVDEV_MAX_EVENT_SIZE) {
-            bb.getLong();
-            bb.getLong();
+            bb.getLong()
+            bb.getLong()
         } else {
-            bb.getInt();
-            bb.getInt();
+            bb.getInt()
+            bb.getInt()
         }
 
-        return new EvdevEvent(bb.getShort(), bb.getShort(), bb.getInt());
+        return EvdevEvent(bb.getShort(), bb.getShort(), bb.getInt())
     }
 }

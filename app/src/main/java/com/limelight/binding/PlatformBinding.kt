@@ -1,14 +1,13 @@
-package com.limelight.binding;
+package com.limelight.binding
 
-import android.content.Context;
+import android.content.Context
 
-import com.limelight.binding.audio.AndroidAudioRenderer;
-import com.limelight.binding.crypto.AndroidCryptoProvider;
-import com.limelight.nvstream.av.audio.AudioRenderer;
-import com.limelight.nvstream.http.LimelightCryptoProvider;
+import com.limelight.binding.crypto.AndroidCryptoProvider
+import com.limelight.nvstream.http.LimelightCryptoProvider
 
-public class PlatformBinding {
-    public static LimelightCryptoProvider getCryptoProvider(Context c) {
-        return new AndroidCryptoProvider(c);
+object PlatformBinding {
+    @JvmStatic
+    fun getCryptoProvider(c: Context): LimelightCryptoProvider {
+        return AndroidCryptoProvider(c)
     }
 }

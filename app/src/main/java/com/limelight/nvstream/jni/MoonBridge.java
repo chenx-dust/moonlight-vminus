@@ -10,6 +10,7 @@ public class MoonBridge {
     public static final AudioConfiguration AUDIO_CONFIGURATION_STEREO = new AudioConfiguration(2, 0x3);
     public static final AudioConfiguration AUDIO_CONFIGURATION_51_SURROUND = new AudioConfiguration(6, 0x3F);
     public static final AudioConfiguration AUDIO_CONFIGURATION_71_SURROUND = new AudioConfiguration(8, 0x63F);
+    public static final AudioConfiguration AUDIO_CONFIGURATION_714_SURROUND = new AudioConfiguration(12, 0xF63F);
 
     public static final int VIDEO_FORMAT_H264 = 0x0001;
     public static final int VIDEO_FORMAT_H265 = 0x0100;
@@ -132,6 +133,18 @@ public class MoonBridge {
     private static AudioRenderer audioRenderer;
     private static VideoDecoderRenderer videoRenderer;
     private static NvConnectionListener connectionListener;
+    private static BassEnergyListener bassEnergyListener;
+
+    /**
+     * Listener for bass energy callbacks from native audio processing.
+     */
+    public interface BassEnergyListener {
+        void onBassEnergy(int intensity);
+    }
+
+    public static void setBassEnergyListener(BassEnergyListener listener) {
+        bassEnergyListener = listener;
+    }
 
     static {
         System.loadLibrary("moonlight-core");
@@ -265,6 +278,18 @@ public class MoonBridge {
         }
     }
 
+    /**
+     * Called from native layer (callbacks.c) when bass energy analysis
+     * produces a reportable intensity value.
+     *
+     * @param intensity Vibration intensity (0-100)
+     */
+    public static void bridgeBassEnergy(int intensity) {
+        if (bassEnergyListener != null) {
+            bassEnergyListener.onBassEnergy(intensity);
+        }
+    }
+
     public static void bridgeClStageStarting(int stage) {
         if (connectionListener != null) {
             connectionListener.stageStarting(getStageName(stage));
@@ -347,6 +372,7 @@ public class MoonBridge {
         MoonBridge.videoRenderer = null;
         MoonBridge.audioRenderer = null;
         MoonBridge.connectionListener = null;
+        MoonBridge.bassEnergyListener = null;
     }
 
     public static native int startConnection(String address, String appVersion, String gfeVersion,
@@ -440,4 +466,25 @@ public class MoonBridge {
     public static native int sendMicrophoneOpusData(byte[] opusData);
     
     public static native boolean isMicrophoneEncryptionEnabled();
+
+    // Bass energy analyzer control (audio-driven vibration)
+    public static native void setBassEnergyEnabled(boolean enabled);
+    public static native void setBassEnergySensitivity(float sensitivity);
+    public static native void setBassEnergySceneMode(int mode);
+
+    // Surface DataSpace control for HDR color space
+    // Uses ANativeWindow_setBuffersDataSpace() via JNI (API 28+)
+
+    // DataSpace constants: STANDARD_BT2020 | TRANSFER | RANGE
+    public static final int DATASPACE_BT2020_HLG_FULL = 0x09C60000;
+    public static final int DATASPACE_BT2020_HLG_LIMITED = 0x11C60000;
+    public static final int DATASPACE_BT2020_PQ_FULL = 0x09860000;
+    public static final int DATASPACE_BT2020_PQ_LIMITED = 0x11860000;
+
+    /**
+     * Set the DataSpace on a Surface for HDR content.
+     * @return 0 on success, -1 if API unavailable, -2 if surface invalid
+     */
+    public static native int nativeSetSurfaceDataSpace(android.view.Surface surface, int dataSpace);
+    public static native int nativeGetSurfaceDataSpace(android.view.Surface surface);
 }

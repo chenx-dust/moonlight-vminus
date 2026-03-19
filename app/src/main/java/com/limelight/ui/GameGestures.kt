@@ -1,9 +1,8 @@
-package com.limelight.ui;
+package com.limelight.ui
 
-import com.limelight.binding.input.GameInputDevice;
+import com.limelight.binding.input.GameInputDevice
 
-public interface GameGestures {
-    void toggleKeyboard();
-
-    void showGameMenu(GameInputDevice device);
+interface GameGestures {
+    fun toggleKeyboard()
+    fun showGameMenu(device: GameInputDevice?)
 }

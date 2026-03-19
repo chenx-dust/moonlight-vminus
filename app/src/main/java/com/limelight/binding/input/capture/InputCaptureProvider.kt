@@ -1,49 +1,41 @@
-package com.limelight.binding.input.capture;
+package com.limelight.binding.input.capture
 
-import android.view.MotionEvent;
+import android.app.Activity
+import android.view.MotionEvent
 
-public abstract class InputCaptureProvider {
-    protected boolean isCapturing;
-    protected boolean isCursorVisible;
+open class InputCaptureProvider {
+    @JvmField protected var isCapturing = false
+    @JvmField protected var isCursorVisible = false
 
-    public void enableCapture() {
-        isCapturing = true;
-        hideCursor();
-    }
-    public void disableCapture() {
-        isCapturing = false;
-        showCursor();
+    open fun enableCapture() {
+        isCapturing = true
+        hideCursor()
     }
 
-    public void destroy() {}
-
-    public boolean isCapturingEnabled() {
-        return isCapturing;
+    open fun disableCapture() {
+        isCapturing = false
+        showCursor()
     }
 
-    public boolean isCapturingActive() {
-        return isCapturing;
+    open fun destroy() {}
+
+    open fun isCapturingEnabled(): Boolean = isCapturing
+
+    open fun isCapturingActive(): Boolean = isCapturing
+
+    open fun showCursor() {
+        isCursorVisible = true
     }
 
-    public void showCursor() {
-        isCursorVisible = true;
+    open fun hideCursor() {
+        isCursorVisible = false
     }
 
-    public void hideCursor() {
-        isCursorVisible = false;
-    }
+    open fun eventHasRelativeMouseAxes(event: MotionEvent): Boolean = false
 
-    public boolean eventHasRelativeMouseAxes(MotionEvent event) {
-        return false;
-    }
+    open fun getRelativeAxisX(event: MotionEvent): Float = 0f
 
-    public float getRelativeAxisX(MotionEvent event) {
-        return 0;
-    }
+    open fun getRelativeAxisY(event: MotionEvent): Float = 0f
 
-    public float getRelativeAxisY(MotionEvent event) {
-        return 0;
-    }
-
-    public void onWindowFocusChanged(boolean focusActive) {}
+    open fun onWindowFocusChanged(focusActive: Boolean) {}
 }

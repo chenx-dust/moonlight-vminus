@@ -1,28 +1,20 @@
-package com.limelight.nvstream.http;
+package com.limelight.nvstream.http
 
-import java.io.IOException;
+import java.io.IOException
 
-public class HostHttpResponseException extends IOException {
-    private static final long serialVersionUID = 1543508830807804222L;
-    
-    private int errorCode;
-    private String errorMsg;
-    
-    public HostHttpResponseException(int errorCode, String errorMsg) {
-        this.errorCode = errorCode;
-        this.errorMsg = errorMsg;
+class HostHttpResponseException(
+    private val errorCode: Int,
+    private val errorMsg: String
+) : IOException() {
+
+    companion object {
+        private const val serialVersionUID = 1543508830807804222L
     }
-    
-    public int getErrorCode() {
-        return errorCode;
-    }
-    
-    public String getErrorMessage() {
-        return errorMsg;
-    }
-    
-    @Override
-    public String getMessage() {
-        return "Host PC returned error: "+errorMsg+" (Error code: "+errorCode+")";
-    }
+
+    fun getErrorCode(): Int = errorCode
+
+    fun getErrorMessage(): String = errorMsg
+
+    override val message: String
+        get() = "Host PC returned error: $errorMsg (Error code: $errorCode)"
 }

@@ -1,71 +1,46 @@
-package com.limelight.nvstream.mdns;
+package com.limelight.nvstream.mdns
 
-import java.net.Inet6Address;
-import java.net.InetAddress;
+import java.net.Inet6Address
+import java.net.InetAddress
 
-public class MdnsComputer {
-    private InetAddress localAddr;
-    private Inet6Address v6Addr;
-    private int port;
-    private String name;
+class MdnsComputer(
+    private val name: String,
+    private val localAddr: InetAddress?,
+    private val v6Addr: Inet6Address?,
+    private val port: Int
+) {
 
-    public MdnsComputer(String name, InetAddress localAddress, Inet6Address v6Addr, int port) {
-        this.name = name;
-        this.localAddr = localAddress;
-        this.v6Addr = v6Addr;
-        this.port = port;
-    }
+    fun getName(): String = name
 
-    public String getName() {
-        return name;
-    }
+    fun getLocalAddress(): InetAddress? = localAddr
 
-    public InetAddress getLocalAddress() {
-        return localAddr;
-    }
+    fun getIpv6Address(): Inet6Address? = v6Addr
 
-    public Inet6Address getIpv6Address() {
-        return v6Addr;
-    }
+    fun getPort(): Int = port
 
-    public int getPort() {
-        return port;
-    }
+    override fun hashCode(): Int = name.hashCode()
 
-    @Override
-    public int hashCode() {
-        return name.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (o instanceof MdnsComputer) {
-            MdnsComputer other = (MdnsComputer)o;
-
-            if (!other.name.equals(name) || other.port != port) {
-                return false;
+    override fun equals(other: Any?): Boolean {
+        if (other is MdnsComputer) {
+            if (other.name != name || other.port != port) {
+                return false
             }
-
             if ((other.localAddr != null && localAddr == null) ||
-                    (other.localAddr == null && localAddr != null) ||
-                    (other.localAddr != null && !other.localAddr.equals(localAddr))) {
-                return false;
+                (other.localAddr == null && localAddr != null) ||
+                (other.localAddr != null && other.localAddr != localAddr)
+            ) {
+                return false
             }
-
             if ((other.v6Addr != null && v6Addr == null) ||
-                    (other.v6Addr == null && v6Addr != null) ||
-                    (other.v6Addr != null && !other.v6Addr.equals(v6Addr))) {
-                return false;
+                (other.v6Addr == null && v6Addr != null) ||
+                (other.v6Addr != null && other.v6Addr != v6Addr)
+            ) {
+                return false
             }
-
-            return true;
+            return true
         }
-
-        return false;
+        return false
     }
 
-    @Override
-    public String toString() {
-        return "["+name+" - "+localAddr+" - "+v6Addr+"]";
-    }
+    override fun toString(): String = "[$name - $localAddr - $v6Addr]"
 }

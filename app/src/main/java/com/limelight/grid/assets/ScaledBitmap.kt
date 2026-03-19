@@ -1,18 +1,9 @@
-package com.limelight.grid.assets;
+package com.limelight.grid.assets
 
-import android.graphics.Bitmap;
+import android.graphics.Bitmap
 
-public class ScaledBitmap {
-    public int originalWidth;
-    public int originalHeight;
-
-    public Bitmap bitmap;
-
-    public ScaledBitmap() {}
-
-    public ScaledBitmap(int originalWidth, int originalHeight, Bitmap bitmap) {
-        this.originalWidth = originalWidth;
-        this.originalHeight = originalHeight;
-        this.bitmap = bitmap;
-    }
-}
+class ScaledBitmap @JvmOverloads constructor(
+    @JvmField var originalWidth: Int = 0,
+    @JvmField var originalHeight: Int = 0,
+    @JvmField var bitmap: Bitmap? = null
+)

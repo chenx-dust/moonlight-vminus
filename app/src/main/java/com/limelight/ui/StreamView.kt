@@ -1,85 +1,74 @@
-package com.limelight.ui;
+package com.limelight.ui
 
-import android.annotation.TargetApi;
-import android.content.Context;
-import android.util.AttributeSet;
-import android.view.KeyEvent;
-import android.view.SurfaceView;
+import android.content.Context
+import android.util.AttributeSet
+import android.view.KeyEvent
+import android.view.SurfaceView
 
-public class StreamView extends SurfaceView {
-    private double desiredAspectRatio;
-    private InputCallbacks inputCallbacks;
+class StreamView : SurfaceView {
+    private var desiredAspectRatio = 0.0
+    private var inputCallbacks: InputCallbacks? = null
 
-    public void setDesiredAspectRatio(double aspectRatio) {
-        this.desiredAspectRatio = aspectRatio;
+    fun setDesiredAspectRatio(aspectRatio: Double) {
+        this.desiredAspectRatio = aspectRatio
     }
 
-    public void setInputCallbacks(InputCallbacks callbacks) {
-        this.inputCallbacks = callbacks;
+    fun setInputCallbacks(callbacks: InputCallbacks?) {
+        this.inputCallbacks = callbacks
     }
 
-    public StreamView(Context context) {
-        super(context);
-    }
+    constructor(context: Context) : super(context)
 
-    public StreamView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
-    public StreamView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
 
-    public StreamView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-    }
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : super(context, attrs, defStyleAttr, defStyleRes)
 
-    @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // If no fixed aspect ratio has been provided, simply use the default onMeasure() behavior
-        if (desiredAspectRatio == 0) {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            return;
+        if (desiredAspectRatio == 0.0) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
         }
 
         // Based on code from: https://www.buzzingandroid.com/2012/11/easy-measuring-of-custom-views-with-specific-aspect-ratio/
-        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        val widthSize = MeasureSpec.getSize(widthMeasureSpec)
+        val heightSize = MeasureSpec.getSize(heightMeasureSpec)
 
-        int measuredHeight, measuredWidth;
+        val measuredHeight: Int
+        val measuredWidth: Int
         if (widthSize > heightSize * desiredAspectRatio) {
-            measuredHeight = heightSize;
-            measuredWidth = (int)(measuredHeight * desiredAspectRatio);
+            measuredHeight = heightSize
+            measuredWidth = (measuredHeight * desiredAspectRatio).toInt()
         } else {
-            measuredWidth = widthSize;
-            measuredHeight = (int)(measuredWidth / desiredAspectRatio);
+            measuredWidth = widthSize
+            measuredHeight = (measuredWidth / desiredAspectRatio).toInt()
         }
 
-        setMeasuredDimension(measuredWidth, measuredHeight);
+        setMeasuredDimension(measuredWidth, measuredHeight)
     }
 
-    @Override
-    public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+    override fun onKeyPreIme(keyCode: Int, event: KeyEvent): Boolean {
         // This callbacks allows us to override dumb IME behavior like when
         // Samsung's default keyboard consumes Shift+Space.
         if (inputCallbacks != null) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (inputCallbacks.handleKeyDown(event)) {
-                    return true;
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (inputCallbacks!!.handleKeyDown(event)) {
+                    return true
                 }
-            }
-            else if (event.getAction() == KeyEvent.ACTION_UP) {
-                if (inputCallbacks.handleKeyUp(event)) {
-                    return true;
+            } else if (event.action == KeyEvent.ACTION_UP) {
+                if (inputCallbacks!!.handleKeyUp(event)) {
+                    return true
                 }
             }
         }
 
-        return super.onKeyPreIme(keyCode, event);
+        return super.onKeyPreIme(keyCode, event)
     }
 
-    public interface InputCallbacks {
-        boolean handleKeyUp(KeyEvent event);
-        boolean handleKeyDown(KeyEvent event);
+    interface InputCallbacks {
+        fun handleKeyUp(event: KeyEvent): Boolean
+        fun handleKeyDown(event: KeyEvent): Boolean
     }
 }

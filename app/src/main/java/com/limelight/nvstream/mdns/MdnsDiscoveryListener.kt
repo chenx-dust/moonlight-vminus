@@ -1,6 +1,6 @@
-package com.limelight.nvstream.mdns;
+package com.limelight.nvstream.mdns
 
-public interface MdnsDiscoveryListener {
-    void notifyComputerAdded(MdnsComputer computer);
-    void notifyDiscoveryFailure(Exception e);
+interface MdnsDiscoveryListener {
+    fun notifyComputerAdded(computer: MdnsComputer)
+    fun notifyDiscoveryFailure(e: Exception)
 }

@@ -1,131 +1,113 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.res.TypedArray;
-import android.preference.ListPreference;
-import android.util.AttributeSet;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.ImageView;
-import android.widget.TextView;
+import android.app.AlertDialog
+import android.content.Context
+import android.content.res.TypedArray
+import android.preference.ListPreference
+import android.util.AttributeSet
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.ImageView
 
-import com.limelight.R;
-import com.limelight.Game;
+import com.limelight.Game
+import com.limelight.R
 
-public class IconListPreference extends ListPreference {
-    private int[] mEntryIcons;
-    private String mOriginalSummary;
+class IconListPreference(context: Context, attrs: AttributeSet?) : ListPreference(context, attrs) {
+    private var mEntryIcons: IntArray? = null
+    private var mOriginalSummary: String? = null
 
-    public IconListPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        
-        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.IconListPreference);
-        int iconsResId = a.getResourceId(R.styleable.IconListPreference_entryIcons, 0);
+    init {
+        val a = context.obtainStyledAttributes(attrs, R.styleable.IconListPreference)
+        val iconsResId = a.getResourceId(R.styleable.IconListPreference_entryIcons, 0)
         if (iconsResId != 0) {
-            TypedArray icons = context.getResources().obtainTypedArray(iconsResId);
-            mEntryIcons = new int[icons.length()];
-            for (int i = 0; i < icons.length(); i++) {
-                mEntryIcons[i] = icons.getResourceId(i, 0);
-            }
-            icons.recycle();
+            val icons = context.resources.obtainTypedArray(iconsResId)
+            mEntryIcons = IntArray(icons.length()) { icons.getResourceId(it, 0) }
+            icons.recycle()
         }
-        a.recycle();
-        
+        a.recycle()
+
         // 保存原始summary用于以后显示
-        mOriginalSummary = (String) getSummary();
-        
+        mOriginalSummary = summary?.toString()
+
         // 设置值变化监听器
-        setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(android.preference.Preference preference, Object newValue) {
-                // 当值变化时更新summary
-                updateSummary(newValue.toString());
-                return true; // 允许变化发生
-            }
-        });
-        
+        onPreferenceChangeListener = OnPreferenceChangeListener { _, newValue ->
+            updateSummary(newValue.toString())
+            true
+        }
+
         // 初始化summary显示当前值
-        updateSummary(getValue());
+        updateSummary(value)
     }
 
-    @Override
-    protected void onPrepareDialogBuilder(android.app.AlertDialog.Builder builder) {
-        if (getEntries() == null || mEntryIcons == null) {
-            super.onPrepareDialogBuilder(builder);
-            return;
+    override fun onPrepareDialogBuilder(builder: AlertDialog.Builder) {
+        if (entries == null || mEntryIcons == null) {
+            super.onPrepareDialogBuilder(builder)
+            return
         }
 
-
-
-        ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(
-                getContext(), R.layout.icon_list_item, R.id.text, getEntries()) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                ImageView iconView = view.findViewById(R.id.icon);
-                if (position < mEntryIcons.length && mEntryIcons[position] != 0) {
-                    iconView.setImageResource(mEntryIcons[position]);
-                    iconView.setVisibility(View.VISIBLE);
+        val adapter = object : ArrayAdapter<CharSequence>(
+            context, R.layout.icon_list_item, R.id.text, entries
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                val iconView = view.findViewById<ImageView>(R.id.icon)
+                val icons = mEntryIcons
+                if (icons != null && position < icons.size && icons[position] != 0) {
+                    iconView.setImageResource(icons[position])
+                    iconView.visibility = View.VISIBLE
                 } else {
-                    iconView.setVisibility(View.GONE);
+                    iconView.visibility = View.GONE
                 }
-                return view;
+                return view
             }
-        };
-        
-        builder.setAdapter(adapter, this);
-        super.onPrepareDialogBuilder(builder);
+        }
+
+        builder.setAdapter(adapter, this)
+        super.onPrepareDialogBuilder(builder)
     }
-    
-    @Override
-    public void setSummary(CharSequence summary) {
+
+    override fun setSummary(summary: CharSequence?) {
         // 如果不是我们程序化设置的summary，保存它作为原始summary
-        if (mOriginalSummary == null || !summary.toString().contains(mOriginalSummary)) {
-            mOriginalSummary = summary.toString();
+        if (summary != null && (mOriginalSummary == null || !summary.toString().contains(mOriginalSummary!!))) {
+            mOriginalSummary = summary.toString()
         }
-        super.setSummary(summary);
+        super.setSummary(summary)
     }
-    
-    private void updateSummary(String value) {
-        // 找到当前值对应的显示文本
-        CharSequence[] entries = getEntries();
-        CharSequence[] entryValues = getEntryValues();
-        
+
+    private fun updateSummary(value: String?) {
+        val entries = entries
+        val entryValues = entryValues
+
         if (entries == null || entryValues == null) {
-            return;
+            return
         }
-        
-        int index = findIndexOfValue(value);
+
+        val index = findIndexOfValue(value)
         if (index >= 0) {
-            // 组合原始summary和当前选择值
-            String currentEntry = entries[index].toString();
-            String summary = mOriginalSummary + " (当前：" + currentEntry + ")";
-            super.setSummary(summary);
+            val currentEntry = entries[index].toString()
+            val summary = "$mOriginalSummary (当前：$currentEntry)"
+            super.setSummary(summary)
         } else {
-            super.setSummary(mOriginalSummary);
+            super.setSummary(mOriginalSummary)
         }
     }
 
-    @Override
-    protected void onDialogClosed(boolean positiveResult) {
-        super.onDialogClosed(positiveResult);
-        
+    override fun onDialogClosed(positiveResult: Boolean) {
+        super.onDialogClosed(positiveResult)
+
         if (positiveResult) {
-            // 当对话框关闭并确认后，更新summary
-            updateSummary(getValue());
-            
+            updateSummary(value)
+
             // 如果当前正在游戏中，通知Activity刷新显示位置
-            if (getContext() instanceof Game) {
-                ((Game) getContext()).refreshDisplayPosition();
+            if (context is Game) {
+                (context as Game).refreshDisplayPosition()
             }
         }
     }
-    
-    // 在旧版API中，需要覆盖这些方法来确保summary更新
-    @Override
-    protected void onSetInitialValue(boolean restoreValue, Object defaultValue) {
-        super.onSetInitialValue(restoreValue, defaultValue);
-        updateSummary(getValue());
+
+    override fun onSetInitialValue(restoreValue: Boolean, defaultValue: Any?) {
+        super.onSetInitialValue(restoreValue, defaultValue)
+        updateSummary(value)
     }
-} 
+}

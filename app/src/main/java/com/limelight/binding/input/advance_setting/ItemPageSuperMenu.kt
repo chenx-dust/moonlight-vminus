@@ -1,25 +1,21 @@
-package com.limelight.binding.input.advance_setting;
+package com.limelight.binding.input.advance_setting
 
-import android.content.Context;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
 
-import com.limelight.R;
-import com.limelight.binding.input.advance_setting.superpage.SuperPageLayout;
+import com.limelight.R
 
-public class ItemPageSuperMenu {
-    private LinearLayout item;
+class ItemPageSuperMenu(text: String, onClickListener: View.OnClickListener, context: Context) {
+    private val item: LinearLayout =
+        LayoutInflater.from(context).inflate(R.layout.item_page_super_menu, null) as LinearLayout
 
-    public ItemPageSuperMenu(String text, View.OnClickListener onClickListener,Context context){
-        item = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.item_page_super_menu,null);
-        ((TextView)item.findViewById(R.id.item_page_super_menu_text)).setText(text);
-        item.setOnClickListener(onClickListener);
+    init {
+        item.findViewById<TextView>(R.id.item_page_super_menu_text).text = text
+        item.setOnClickListener(onClickListener)
     }
 
-    public View getView(){
-        return item;
-    }
-
+    fun getView(): View = item
 }

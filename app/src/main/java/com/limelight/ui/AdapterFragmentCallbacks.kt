@@ -1,10 +1,10 @@
-package com.limelight.ui;
+package com.limelight.ui
 
-import android.view.View;
+import android.view.View
 
-public interface AdapterFragmentCallbacks {
-    int getAdapterFragmentLayoutId();
+interface AdapterFragmentCallbacks {
+    fun getAdapterFragmentLayoutId(): Int
     // Generalized to accept any View (RecyclerView or AbsListView). Implementations
     // should check the runtime type if necessary.
-    void receiveAbsListView(View gridView);
+    fun receiveAbsListView(gridView: View)
 }

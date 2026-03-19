@@ -1,42 +1,38 @@
-package com.limelight.grid.assets;
+package com.limelight.grid.assets
 
-import android.content.Context;
+import android.content.Context
+import com.limelight.LimeLog
+import com.limelight.binding.PlatformBinding
+import com.limelight.nvstream.http.NvHTTP
+import com.limelight.utils.ServerHelper
+import java.io.IOException
+import java.io.InputStream
 
-import com.limelight.LimeLog;
-import com.limelight.binding.PlatformBinding;
-import com.limelight.nvstream.http.NvHTTP;
-import com.limelight.utils.ServerHelper;
+class NetworkAssetLoader(
+    private val context: Context,
+    private val uniqueId: String
+) {
 
-import java.io.IOException;
-import java.io.InputStream;
-
-public class NetworkAssetLoader {
-    private final Context context;
-    private final String uniqueId;
-
-    public NetworkAssetLoader(Context context, String uniqueId) {
-        this.context = context;
-        this.uniqueId = uniqueId;
-    }
-
-    public InputStream getBitmapStream(CachedAppAssetLoader.LoaderTuple tuple) {
-        InputStream in = null;
+    fun getBitmapStream(tuple: CachedAppAssetLoader.LoaderTuple): InputStream? {
+        var input: InputStream? = null
         try {
-            NvHTTP http = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(tuple.computer),
-                    tuple.computer.httpsPort, uniqueId, "", tuple.computer.serverCert,
-                    PlatformBinding.getCryptoProvider(context));
-            in = http.getBoxArt(tuple.app);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restore interrupt status
-        } catch (IOException ignored) {}
-
-        if (in != null) {
-            LimeLog.info("Network asset load complete: " + tuple);
-        }
-        else {
-            LimeLog.info("Network asset load failed: " + tuple);
+            val http = NvHTTP(
+                ServerHelper.getCurrentAddressFromComputer(tuple.computer),
+                tuple.computer.httpsPort, uniqueId, "", tuple.computer.serverCert,
+                PlatformBinding.getCryptoProvider(context)
+            )
+            input = http.getBoxArt(tuple.app)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt() // Restore interrupt status
+        } catch (ignored: IOException) {
         }
 
-        return in;
+        if (input != null) {
+            LimeLog.info("Network asset load complete: $tuple")
+        } else {
+            LimeLog.info("Network asset load failed: $tuple")
+        }
+
+        return input
     }
 }

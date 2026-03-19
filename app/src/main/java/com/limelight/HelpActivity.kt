@@ -1,116 +1,106 @@
-package com.limelight;
+package com.limelight
 
-import android.app.Activity;
-import android.graphics.Bitmap;
-import android.os.Build;
-import android.os.Bundle;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.window.OnBackInvokedCallback;
-import android.window.OnBackInvokedDispatcher;
+import android.app.Activity
+import android.graphics.Bitmap
+import android.os.Build
+import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 
-import com.limelight.utils.SpinnerDialog;
+import com.limelight.utils.SpinnerDialog
 
-public class HelpActivity extends Activity {
+class HelpActivity : Activity() {
 
-    private SpinnerDialog loadingDialog;
-    private WebView webView;
+    private var loadingDialog: SpinnerDialog? = null
+    private lateinit var webView: WebView
 
-    private boolean backCallbackRegistered;
-    private OnBackInvokedCallback onBackInvokedCallback;
+    private var backCallbackRegistered = false
+    private var onBackInvokedCallback: OnBackInvokedCallback? = null
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            onBackInvokedCallback = new OnBackInvokedCallback() {
-                @Override
-                public void onBackInvoked() {
-                    // We should always be able to go back because we unregister our callback
-                    // when we can't go back. Nonetheless, we will still check anyway.
-                    if (webView.canGoBack()) {
-                        webView.goBack();
-                    }
+            onBackInvokedCallback = OnBackInvokedCallback {
+                // We should always be able to go back because we unregister our callback
+                // when we can't go back. Nonetheless, we will still check anyway.
+                if (webView.canGoBack()) {
+                    webView.goBack()
                 }
-            };
+            }
         }
 
-        webView = new WebView(this);
-        setContentView(webView);
+        webView = WebView(this)
+        setContentView(webView)
 
         // These allow the user to zoom the page
-        webView.getSettings().setBuiltInZoomControls(true);
-        webView.getSettings().setDisplayZoomControls(false);
+        webView.settings.builtInZoomControls = true
+        webView.settings.displayZoomControls = false
 
         // This sets the view to display the whole page by default
-        webView.getSettings().setUseWideViewPort(true);
-        webView.getSettings().setLoadWithOverviewMode(true);
+        webView.settings.useWideViewPort = true
+        webView.settings.loadWithOverviewMode = true
 
         // This allows the links to places on the same page to work
-        webView.getSettings().setJavaScriptEnabled(true);
+        webView.settings.javaScriptEnabled = true
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 if (loadingDialog == null) {
-                    loadingDialog = SpinnerDialog.displayDialog(HelpActivity.this,
-                            getResources().getString(R.string.help_loading_title),
-                            getResources().getString(R.string.help_loading_msg), false);
+                    loadingDialog = SpinnerDialog.displayDialog(
+                        this@HelpActivity,
+                        resources.getString(R.string.help_loading_title),
+                        resources.getString(R.string.help_loading_msg),
+                        false
+                    )
                 }
-
-                refreshBackDispatchState();
+                refreshBackDispatchState()
             }
 
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                if (loadingDialog != null) {
-                    loadingDialog.dismiss();
-                    loadingDialog = null;
-                }
-
-                refreshBackDispatchState();
+            override fun onPageFinished(view: WebView, url: String) {
+                loadingDialog?.dismiss()
+                loadingDialog = null
+                refreshBackDispatchState()
             }
-        });
+        }
 
-        webView.loadUrl(getIntent().getData().toString());
+        webView.loadUrl(intent.data.toString())
     }
 
-    private void refreshBackDispatchState() {
+    private fun refreshBackDispatchState() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (webView.canGoBack() && !backCallbackRegistered) {
-                getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                        OnBackInvokedDispatcher.PRIORITY_DEFAULT, onBackInvokedCallback);
-                backCallbackRegistered = true;
-            }
-            else if (!webView.canGoBack() && backCallbackRegistered) {
-                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(onBackInvokedCallback);
-                backCallbackRegistered = false;
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, onBackInvokedCallback!!
+                )
+                backCallbackRegistered = true
+            } else if (!webView.canGoBack() && backCallbackRegistered) {
+                onBackInvokedDispatcher.unregisterOnBackInvokedCallback(onBackInvokedCallback!!)
+                backCallbackRegistered = false
             }
         }
     }
 
-    @Override
-    protected void onDestroy() {
+    override fun onDestroy() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (backCallbackRegistered) {
-                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(onBackInvokedCallback);
+                onBackInvokedDispatcher.unregisterOnBackInvokedCallback(onBackInvokedCallback!!)
             }
         }
-
-        super.onDestroy();
+        super.onDestroy()
     }
 
-    @Override
-    // NOTE: This will NOT be called on Android 13+ with android:enableOnBackInvokedCallback="true"
-    public void onBackPressed() {
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
         // Back goes back through the WebView history
         // until no more history remains
         if (webView.canGoBack()) {
-            webView.goBack();
-        }
-        else {
-            super.onBackPressed();
+            webView.goBack()
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
         }
     }
 }

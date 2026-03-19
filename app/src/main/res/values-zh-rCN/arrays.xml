@@ -8,5 +8,26 @@
         <item>丹霞赤</item>
         <item>象牙白</item>
     </string-array>
-</resources>
 
+    <!-- 音频振动路由模式 -->
+    <string-array name="audio_vibration_mode_names">
+        <item>自动</item>
+        <item>仅设备振动</item>
+        <item>仅手柄振动</item>
+        <item>同时振动</item>
+    </string-array>
+
+    <!-- 音频振动场景模式 -->
+    <string-array name="audio_vibration_scene_names">
+        <item>游戏 / 影视</item>
+        <item>音乐</item>
+        <item>自动</item>
+    </string-array>
+
+    <!-- 浮球手势动作 -->
+    <string-array name="float_ball_action_names">
+        <item>无动作</item>
+        <item>打开虚拟键盘</item>
+        <item>打开菜单</item>
+    </string-array>
+</resources>

@@ -59,6 +59,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private final ArrayList<byte[]> ppsBuffers = new ArrayList<>();
     private boolean submittedCsd;
     private byte[] currentHdrMetadata;
+    private int hdrDataSpace; // Configured DataSpace for HDR content, re-applied after format changes
 
     private int nextInputBufferIndex = -1;
     private ByteBuffer nextInputBuffer;
@@ -83,6 +84,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private final int consecutiveCrashCount;
     private final String glRenderer;
     private boolean foreground = true;
+    private volatile boolean isProcessingPaused = false;
+    private boolean needsIdrOnResume = false;
     private final PerfOverlayListener perfListener;
 
     private static final int CR_MAX_TRIES = 10;
@@ -507,6 +510,51 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         return this.videoFormat;
     }
 
+    public void pauseProcessing() {
+        if (isProcessingPaused) {
+            return;
+        }
+
+        LimeLog.info("Pausing video processing and releasing decoder");
+        isProcessingPaused = true;
+
+        // 停止渲染线程和相关的 handle
+        prepareForStop();
+
+        // 释放 MediaCodec 资源
+        cleanup();
+
+        // 标记下次恢复时需要 IDR 帧
+        needsIdrOnResume = true;
+    }
+
+    public void resumeProcessing() {
+        if (!isProcessingPaused) {
+            return;
+        }
+
+        LimeLog.info("Resuming video processing");
+
+        // 重置停止标志，允许渲染线程运行
+        stopping = false;
+
+        // 清理输出缓冲区队列，移除 prepareForStop 放入的 -1 信号
+        outputBufferQueue.clear();
+
+        // 重置输入缓冲区索引，避免使用已释放解码器的旧索引
+        nextInputBufferIndex = -1;
+        nextInputBuffer = null;
+
+        // 重新初始化解码器
+        // 注意：initialWidth, initialHeight 等变量依然保留着
+        initializeDecoder(false);
+
+        // 重新启动渲染线程等
+        start();
+
+        isProcessingPaused = false;
+    }
+
     private MediaFormat createBaseMediaFormat(String mimeType) {
         MediaFormat videoFormat = MediaFormat.createVideoFormat(mimeType, initialWidth, initialHeight);
 
@@ -523,14 +571,32 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         // Android 7.0 adds color options to the MediaFormat
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // HLG content from Sunshine uses FULL range. Using LIMITED causes dark images
+            // because the HLG OETF/EOTF is applied to the wrong value range on most decoders.
+            boolean useFullRange;
+            if ((getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0 &&
+                    prefs.hdrMode == MoonBridge.HDR_MODE_HLG) {
+                useFullRange = true;
+            } else {
+                useFullRange = (getPreferredColorRange() == MoonBridge.COLOR_RANGE_FULL);
+            }
             videoFormat.setInteger(MediaFormat.KEY_COLOR_RANGE,
-                    getPreferredColorRange() == MoonBridge.COLOR_RANGE_FULL ?
-                            MediaFormat.COLOR_RANGE_FULL : MediaFormat.COLOR_RANGE_LIMITED);
+                    useFullRange ? MediaFormat.COLOR_RANGE_FULL : MediaFormat.COLOR_RANGE_LIMITED);
 
-            // If the stream is HDR-capable, the decoder will detect transitions in color standards
-            // rather than us hardcoding them into the MediaFormat.
-            if ((getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) == 0) {
-                // Set color format keys when not in HDR mode, since we know they won't change
+            if ((getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
+                // HDR 10-bit: set BT.2020 color standard and transfer function.
+                // Many decoders fail to auto-detect from VUI/SEI, causing dark/crushed colors.
+                videoFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020);
+                if (prefs.hdrMode == MoonBridge.HDR_MODE_HLG) {
+                    videoFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_HLG);
+                    // Request pass-through to prevent internal tone-mapping on some decoders
+                    videoFormat.setInteger("color-transfer-request", MediaFormat.COLOR_TRANSFER_HLG);
+                } else {
+                    videoFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_ST2084);
+                    videoFormat.setInteger("color-transfer-request", MediaFormat.COLOR_TRANSFER_ST2084);
+                }
+            } else {
+                // SDR mode: set color format keys since they won't change
                 videoFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO);
                 switch (getPreferredColorSpace()) {
                     case MoonBridge.COLORSPACE_REC_601:
@@ -573,6 +639,31 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                 hdrStaticInfo.rewind();
                 format.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, hdrStaticInfo);
+            } else if ((getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
+                // HLG streams from Sunshine typically have no SMPTE 2086 static metadata.
+                // Without metadata, the display pipeline doesn't know the content's target
+                // luminance range, causing conservative tone mapping that makes HDR look dark.
+                // Provide default BT.2020 metadata with typical HDR display parameters
+                // (matching HarmonyOS behavior for consistent brightness across platforms).
+                ByteBuffer hdrStaticInfo = ByteBuffer.allocate(25).order(ByteOrder.LITTLE_ENDIAN);
+                hdrStaticInfo.put((byte) 0);       // Metadata type (HDMI Static Metadata Type 1)
+                // BT.2020 color primaries (in 0.00002 units per CTA-861.3)
+                hdrStaticInfo.putShort((short) 35400);  // RX: 0.708
+                hdrStaticInfo.putShort((short) 14600);  // RY: 0.292
+                hdrStaticInfo.putShort((short) 8500);   // GX: 0.170
+                hdrStaticInfo.putShort((short) 39850);  // GY: 0.797
+                hdrStaticInfo.putShort((short) 6550);   // BX: 0.131
+                hdrStaticInfo.putShort((short) 2300);   // BY: 0.046
+                hdrStaticInfo.putShort((short) 15635);  // White X: 0.3127 (D65)
+                hdrStaticInfo.putShort((short) 16450);  // White Y: 0.3290 (D65)
+                hdrStaticInfo.putShort((short) 1000);   // Max mastering luminance (cd/m²)
+                hdrStaticInfo.putShort((short) 10);     // Min mastering luminance (0.0001 cd/m² units → 0.001 nits)
+                hdrStaticInfo.putShort((short) 1000);   // Max content light level (cd/m²)
+                hdrStaticInfo.putShort((short) 400);    // Max frame average light level (cd/m²)
+
+                hdrStaticInfo.rewind();
+                format.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, hdrStaticInfo);
+                LimeLog.info("Using default BT.2020 HDR static metadata (no server metadata available)");
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 format.removeKey(MediaFormat.KEY_HDR_STATIC_INFO);
             }
@@ -581,6 +672,27 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         LimeLog.info("Configuring with format: " + format);
 
         videoDecoder.configure(format, renderTarget.getSurface(), null, 0);
+
+        // Set DataSpace on the output Surface for HDR content.
+        // Equivalent to HarmonyOS OH_NativeWindow_SetColorSpace().
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                (getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
+            // HLG always uses FULL range (its OETF/EOTF requires it)
+            boolean isFullRange = (prefs.hdrMode == MoonBridge.HDR_MODE_HLG) ||
+                    (getPreferredColorRange() == MoonBridge.COLOR_RANGE_FULL);
+            if (prefs.hdrMode == MoonBridge.HDR_MODE_HLG) {
+                hdrDataSpace = isFullRange ?
+                        MoonBridge.DATASPACE_BT2020_HLG_FULL :
+                        MoonBridge.DATASPACE_BT2020_HLG_LIMITED;
+            } else {
+                hdrDataSpace = isFullRange ?
+                        MoonBridge.DATASPACE_BT2020_PQ_FULL :
+                        MoonBridge.DATASPACE_BT2020_PQ_LIMITED;
+            }
+            int result = MoonBridge.nativeSetSurfaceDataSpace(renderTarget.getSurface(), hdrDataSpace);
+            LimeLog.info("Surface DataSpace: 0x" + Integer.toHexString(hdrDataSpace) +
+                    " result=" + result);
+        }
 
         configuredFormat = format;
 
@@ -1308,6 +1420,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                     LimeLog.info("Output format changed");
                                     outputFormat = videoDecoder.getOutputFormat();
                                     LimeLog.info("New output format: " + outputFormat);
+
+                                    // Re-apply DataSpace after format change — some decoders reset it
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                                            hdrDataSpace != 0 && renderTarget != null) {
+                                        int currentDataSpace = MoonBridge.nativeGetSurfaceDataSpace(
+                                                renderTarget.getSurface());
+                                        if (currentDataSpace != hdrDataSpace) {
+                                            MoonBridge.nativeSetSurfaceDataSpace(
+                                                    renderTarget.getSurface(), hdrDataSpace);
+                                            LimeLog.info("Re-applied Surface DataSpace: 0x" +
+                                                    Integer.toHexString(hdrDataSpace));
+                                        }
+                                    }
                                     break;
                                 case MediaCodec.INFO_TRY_AGAIN_LATER:
                                 default:
@@ -1624,9 +1749,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                 int frameNumber, int frameType, char frameHostProcessingLatency,
                                 long receiveTimeUs, long enqueueTimeUs) {
-        if (stopping) {
-            // Don't bother if we're stopping
+        if (stopping || isProcessingPaused) {
+            // Don't bother if we're stopping or paused
             return MoonBridge.DR_OK;
+        }
+
+        if (needsIdrOnResume) {
+            if (frameType != MoonBridge.FRAME_TYPE_IDR) {
+                // Request an IDR frame to recover after resume
+                return MoonBridge.DR_NEED_IDR;
+            }
+            // We got our IDR frame
+            needsIdrOnResume = false;
         }
 
         if (lastFrameNumber == 0) {

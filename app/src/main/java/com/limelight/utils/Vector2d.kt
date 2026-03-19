@@ -1,47 +1,40 @@
-package com.limelight.utils;
+package com.limelight.utils
 
-public class Vector2d {
-    private float x;
-    private float y;
-    private double magnitude;
-    
-    public static final Vector2d ZERO = new Vector2d();
-    
-    public Vector2d() {
-        initialize(0, 0);
+import kotlin.math.pow
+import kotlin.math.sqrt
+
+class Vector2d {
+    var x: Float = 0f
+        private set
+    var y: Float = 0f
+        private set
+    var magnitude: Double = 0.0
+        private set
+
+    fun initialize(x: Float, y: Float) {
+        this.x = x
+        this.y = y
+        this.magnitude = sqrt(x.toDouble().pow(2) + y.toDouble().pow(2))
     }
-    
-    public void initialize(float x, float y) {
-        this.x = x;
-        this.y = y;
-        this.magnitude = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+
+    fun getNormalized(vector: Vector2d) {
+        vector.initialize((x / magnitude).toFloat(), (y / magnitude).toFloat())
     }
-    
-    public double getMagnitude() {
-        return magnitude;
+
+    fun scalarMultiply(factor: Double) {
+        initialize((x * factor).toFloat(), (y * factor).toFloat())
     }
-    
-    public void getNormalized(Vector2d vector) {
-        vector.initialize((float)(x / magnitude), (float)(y / magnitude));
+
+    fun setX(x: Float) {
+        initialize(x, this.y)
     }
-    
-    public void scalarMultiply(double factor) {
-        initialize((float)(x * factor), (float)(y * factor));
+
+    fun setY(y: Float) {
+        initialize(this.x, y)
     }
-    
-    public void setX(float x) {
-        initialize(x, this.y);
-    }
-    
-    public void setY(float y) {
-        initialize(this.x, y);
-    }
-    
-    public float getX() {
-        return x;
-    }
-    
-    public float getY() {
-        return y;
+
+    companion object {
+        @JvmField
+        val ZERO = Vector2d()
     }
 }

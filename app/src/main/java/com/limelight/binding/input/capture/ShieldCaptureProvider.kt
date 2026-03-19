@@ -1,13 +1,11 @@
-package com.limelight.binding.input.capture;
+package com.limelight.binding.input.capture
 
+import android.content.Context
+import android.hardware.input.InputManager
+import android.view.MotionEvent
 
-import android.content.Context;
-import android.hardware.input.InputManager;
-import android.view.MotionEvent;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
 
 // NVIDIA extended the Android input APIs with support for using an attached mouse in relative
 // mode without having to grab the input device (which requires root). The data comes in the form
@@ -16,78 +14,69 @@ import java.lang.reflect.Method;
 //
 // http://docs.nvidia.com/gameworks/index.html#technologies/mobile/game_controller_handling_mouse.htm
 
-public class ShieldCaptureProvider extends InputCaptureProvider {
-    private static boolean nvExtensionSupported;
-    private static Method methodSetCursorVisibility;
-    private static int AXIS_RELATIVE_X;
-    private static int AXIS_RELATIVE_Y;
+class ShieldCaptureProvider(private val context: Context) : InputCaptureProvider() {
 
-    private final Context context;
+    override fun hideCursor() {
+        super.hideCursor()
+        setCursorVisibility(false)
+    }
 
-    static {
-        try {
-            methodSetCursorVisibility = InputManager.class.getMethod("setCursorVisibility", boolean.class);
+    override fun showCursor() {
+        super.showCursor()
+        setCursorVisibility(true)
+    }
 
-            Field fieldRelX = MotionEvent.class.getField("AXIS_RELATIVE_X");
-            Field fieldRelY = MotionEvent.class.getField("AXIS_RELATIVE_Y");
-
-            AXIS_RELATIVE_X = (Integer) fieldRelX.get(null);
-            AXIS_RELATIVE_Y = (Integer) fieldRelY.get(null);
-
-            nvExtensionSupported = true;
-        } catch (Exception e) {
-            nvExtensionSupported = false;
+    private fun setCursorVisibility(visible: Boolean): Boolean {
+        return try {
+            methodSetCursorVisibility!!.invoke(context.getSystemService(Context.INPUT_SERVICE), visible)
+            true
+        } catch (e: InvocationTargetException) {
+            e.printStackTrace()
+            false
+        } catch (e: IllegalAccessException) {
+            e.printStackTrace()
+            false
         }
     }
 
-    public ShieldCaptureProvider(Context context) {
-        this.context = context;
-    }
-
-    public static boolean isCaptureProviderSupported() {
-        return nvExtensionSupported;
-    }
-
-    private boolean setCursorVisibility(boolean visible) {
-        try {
-            methodSetCursorVisibility.invoke(context.getSystemService(Context.INPUT_SERVICE), visible);
-            return true;
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-
-        return false;
-    }
-
-    @Override
-    public void hideCursor() {
-        super.hideCursor();
-        setCursorVisibility(false);
-    }
-
-    @Override
-    public void showCursor() {
-        super.showCursor();
-        setCursorVisibility(true);
-    }
-
-    @Override
-    public boolean eventHasRelativeMouseAxes(MotionEvent event) {
+    override fun eventHasRelativeMouseAxes(event: MotionEvent): Boolean {
         // All mouse events should use relative axes, even if they are zero. This avoids triggering
         // cursor jumps if we get an event with no associated motion, like ACTION_DOWN or ACTION_UP.
-        return event.getPointerCount() == 1 && event.getActionIndex() == 0 &&
-                event.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE;
+        return event.pointerCount == 1 && event.actionIndex == 0 &&
+                event.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE
     }
 
-    @Override
-    public float getRelativeAxisX(MotionEvent event) {
-        return event.getAxisValue(AXIS_RELATIVE_X);
+    override fun getRelativeAxisX(event: MotionEvent): Float {
+        return event.getAxisValue(AXIS_RELATIVE_X)
     }
 
-    @Override
-    public float getRelativeAxisY(MotionEvent event) {
-        return event.getAxisValue(AXIS_RELATIVE_Y);
+    override fun getRelativeAxisY(event: MotionEvent): Float {
+        return event.getAxisValue(AXIS_RELATIVE_Y)
+    }
+
+    companion object {
+        private var nvExtensionSupported = false
+        private var methodSetCursorVisibility: Method? = null
+        private var AXIS_RELATIVE_X = 0
+        private var AXIS_RELATIVE_Y = 0
+
+        init {
+            try {
+                methodSetCursorVisibility = InputManager::class.java.getMethod("setCursorVisibility", Boolean::class.javaPrimitiveType)
+
+                val fieldRelX = MotionEvent::class.java.getField("AXIS_RELATIVE_X")
+                val fieldRelY = MotionEvent::class.java.getField("AXIS_RELATIVE_Y")
+
+                AXIS_RELATIVE_X = fieldRelX.get(null) as Int
+                AXIS_RELATIVE_Y = fieldRelY.get(null) as Int
+
+                nvExtensionSupported = true
+            } catch (_: Exception) {
+                nvExtensionSupported = false
+            }
+        }
+
+        @JvmStatic
+        fun isCaptureProviderSupported(): Boolean = nvExtensionSupported
     }
 }

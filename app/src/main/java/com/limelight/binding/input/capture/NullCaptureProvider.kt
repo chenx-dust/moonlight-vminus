@@ -1,4 +1,3 @@
-package com.limelight.binding.input.capture;
+package com.limelight.binding.input.capture
 
-
-public class NullCaptureProvider extends InputCaptureProvider {}
+class NullCaptureProvider : InputCaptureProvider()

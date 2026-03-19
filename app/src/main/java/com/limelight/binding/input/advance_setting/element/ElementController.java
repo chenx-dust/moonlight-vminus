@@ -65,6 +65,7 @@ public class ElementController {
     private static final String SPECIAL_KEY_CONFIG_SWITCH = "CSW";
     private static final String SPECIAL_KEY_PAN_ZOOM_MODE = "PZM";
     private static final String SPECIAL_KEY_OPEN_GAME_MENU = "OGM";
+    private static final String SPECIAL_KEY_EDIT_MODE_SWITCH = "EMS"; // 编辑模式
 
 
 
@@ -195,7 +196,7 @@ public class ElementController {
             @Override
             public void onClick(View v) {
                 changeMode(Mode.Normal);
-                controllerManager.getPageSuperMenuController().open();
+                controllerManager.pageSuperMenuController.open();
                 // 1. 通过公共方法通知 Game Activity 切换回普通菜单模式
                 ((Game) context).setcurrentBackKeyMenu(Game.BackKeyMenuMode.GAME_MENU);
 
@@ -955,7 +956,7 @@ public class ElementController {
                 @Override
                 public void sendEvent(boolean down) {
                     if (down) {
-                        controllerManager.getKeyboardUIController().toggle();
+                        game.toggleVirtualKeyboard();
                     }
                 }
 
@@ -1052,6 +1053,22 @@ public class ElementController {
                 public void sendEvent(boolean down) {
                     if (down) {
                         game.showGameMenu( null);
+                    }
+                }
+                @Override
+                public void sendEvent(int analog1, int analog2) {
+
+                }
+            };
+        } else if (key.equals(SPECIAL_KEY_EDIT_MODE_SWITCH)) {
+            return new SendEventHandler() {
+                @Override
+                public void sendEvent(boolean down) {
+                    if (down) {
+                        buttonVibrator();
+                        game.toggleBackKeyMenuType();
+                        changeMode(Mode.Edit);
+                        open();
                     }
                 }
                 @Override
@@ -1217,7 +1234,7 @@ public class ElementController {
     }
 
 
-    private void rumbleSingleVibrator(short lowFreqMotor, short highFreqMotor, int vibratorTime) {
+    public void rumbleSingleVibrator(short lowFreqMotor, short highFreqMotor, int vibratorTime) {
         // Since we can only use a single amplitude value, compute the desired amplitude
         // by taking 80% of the big motor and 33% of the small motor, then capping to 255.
         // NB: This value is now 0-255 as required by VibrationEffect.

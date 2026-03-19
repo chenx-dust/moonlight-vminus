@@ -1,42 +1,41 @@
-package com.limelight.nvstream;
+package com.limelight.nvstream
 
-import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.ComputerDetails
+import java.security.cert.X509Certificate
+import javax.crypto.SecretKey
 
-import java.security.cert.X509Certificate;
+class ConnectionContext {
+    @JvmField var serverAddress: ComputerDetails.AddressTuple? = null
+    @JvmField var httpsPort: Int = 0
+    @JvmField var isNvidiaServerSoftware: Boolean = false
+    @JvmField var serverCert: X509Certificate? = null
+    @JvmField var streamConfig: StreamConfiguration? = null
+    @JvmField var connListener: NvConnectionListener? = null
+    @JvmField var riKey: SecretKey? = null
+    @JvmField var riKeyId: Int = 0
 
-import javax.crypto.SecretKey;
-
-public class ConnectionContext {
-    public ComputerDetails.AddressTuple serverAddress;
-    public int httpsPort;
-    public boolean isNvidiaServerSoftware;
-    public X509Certificate serverCert;
-    public StreamConfiguration streamConfig;
-    public NvConnectionListener connListener;
-    public SecretKey riKey;
-    public int riKeyId;
-    
     // This is the version quad from the appversion tag of /serverinfo
-    public String serverAppVersion;
-    public String serverGfeVersion;
-    public int serverCodecModeSupport;
+    @JvmField var serverAppVersion: String? = null
+    @JvmField var serverGfeVersion: String? = null
+    @JvmField var serverCodecModeSupport: Int = 0
 
     // This is the sessionUrl0 tag from /resume and /launch
-    public String rtspSessionUrl;
-    
-    public int negotiatedWidth, negotiatedHeight;
-    public boolean negotiatedHdr;
+    @JvmField var rtspSessionUrl: String? = null
 
-    public int negotiatedRemoteStreaming;
-    public int negotiatedPacketSize;
+    @JvmField var negotiatedWidth: Int = 0
+    @JvmField var negotiatedHeight: Int = 0
+    @JvmField var negotiatedHdr: Boolean = false
 
-    public int videoCapabilities;
-    
+    @JvmField var negotiatedRemoteStreaming: Int = 0
+    @JvmField var negotiatedPacketSize: Int = 0
+
+    @JvmField var videoCapabilities: Int = 0
+
     // 设备亮度范围
-    public int minBrightness;
-    public int maxBrightness;
-    public int maxAverageBrightness;
-    
+    @JvmField var minBrightness: Int = 0
+    @JvmField var maxBrightness: Int = 0
+    @JvmField var maxAverageBrightness: Int = 0
+
     // 选择的显示器名称
-    public String displayName;
+    @JvmField var displayName: String? = null
 }

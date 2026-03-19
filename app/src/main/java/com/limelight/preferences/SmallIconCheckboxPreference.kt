@@ -1,21 +1,17 @@
-package com.limelight.preferences;
+package com.limelight.preferences
 
-import android.content.Context;
-import android.content.res.TypedArray;
-import android.preference.CheckBoxPreference;
-import android.util.AttributeSet;
+import android.content.Context
+import android.content.res.TypedArray
+import android.preference.CheckBoxPreference
+import android.util.AttributeSet
 
-public class SmallIconCheckboxPreference extends CheckBoxPreference {
-    public SmallIconCheckboxPreference(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
+class SmallIconCheckboxPreference @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = android.R.attr.checkBoxPreferenceStyle
+) : CheckBoxPreference(context, attrs, defStyleAttr) {
 
-    public SmallIconCheckboxPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    @Override
-    protected Object onGetDefaultValue(TypedArray a, int index) {
-        return PreferenceConfiguration.getDefaultSmallMode(getContext());
+    override fun onGetDefaultValue(a: TypedArray, index: Int): Any {
+        return PreferenceConfiguration.getDefaultSmallMode(context)
     }
 }

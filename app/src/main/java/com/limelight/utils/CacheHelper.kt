@@ -1,86 +1,92 @@
-package com.limelight.utils;
+package com.limelight.utils
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.Reader;
+import java.io.*
 
-public class CacheHelper {
-    public static File openPath(boolean createPath, File root, String... path) {
-        File f = root;
-        for (int i = 0; i < path.length; i++) {
-            String component = path[i];
+object CacheHelper {
+    @JvmStatic
+    fun openPath(createPath: Boolean, root: File, vararg path: String): File {
+        var f = root
+        for (i in path.indices) {
+            val component = path[i]
 
-            if (i == path.length - 1) {
+            if (i == path.size - 1) {
                 // This is the file component so now we create parent directories
                 if (createPath) {
-                    f.mkdirs();
+                    f.mkdirs()
                 }
             }
 
-            f = new File(f, component);
+            f = File(f, component)
         }
-        return f;
+        return f
     }
 
-    public static long getFileSize(File root, String... path) {
-        return openPath(false, root, path).length();
+    @JvmStatic
+    fun getFileSize(root: File, vararg path: String): Long {
+        return openPath(false, root, *path).length()
     }
 
-    public static boolean deleteCacheFile(File root, String... path) {
-        return openPath(false, root, path).delete();
+    @JvmStatic
+    fun deleteCacheFile(root: File, vararg path: String): Boolean {
+        return openPath(false, root, *path).delete()
     }
 
-    public static boolean cacheFileExists(File root, String... path) {
-        return openPath(false, root, path).exists();
+    @JvmStatic
+    fun cacheFileExists(root: File, vararg path: String): Boolean {
+        return openPath(false, root, *path).exists()
     }
 
-    public static InputStream openCacheFileForInput(File root, String... path) throws FileNotFoundException {
-        return new BufferedInputStream(new FileInputStream(openPath(false, root, path)));
+    @JvmStatic
+    @Throws(FileNotFoundException::class)
+    fun openCacheFileForInput(root: File, vararg path: String): InputStream {
+        return BufferedInputStream(FileInputStream(openPath(false, root, *path)))
     }
 
-    public static OutputStream openCacheFileForOutput(File root, String... path) throws FileNotFoundException {
-        return new BufferedOutputStream(new FileOutputStream(openPath(true, root, path)));
+    @JvmStatic
+    @Throws(FileNotFoundException::class)
+    fun openCacheFileForOutput(root: File, vararg path: String): OutputStream {
+        return BufferedOutputStream(FileOutputStream(openPath(true, root, *path)))
     }
 
-    public static void writeInputStreamToOutputStream(InputStream in, OutputStream out, long maxLength) throws IOException {
-        byte[] buf = new byte[4096];
-        int bytesRead;
+    @JvmStatic
+    @Throws(IOException::class)
+    fun writeInputStreamToOutputStream(input: InputStream, out: OutputStream, maxLength: Long) {
+        var remaining = maxLength
+        val buf = ByteArray(4096)
+        var bytesRead: Int
 
-        while ((bytesRead = in.read(buf)) != -1) {
-            maxLength -= bytesRead;
-            if (maxLength <= 0) {
-                throw new IOException("Stream exceeded max size");
+        while (input.read(buf).also { bytesRead = it } != -1) {
+            remaining -= bytesRead
+            if (remaining <= 0) {
+                throw IOException("Stream exceeded max size")
             }
-            out.write(buf, 0, bytesRead);
+            out.write(buf, 0, bytesRead)
         }
     }
 
-    public static String readInputStreamToString(InputStream in) throws IOException {
-        Reader r = new InputStreamReader(in);
+    @JvmStatic
+    @Throws(IOException::class)
+    fun readInputStreamToString(input: InputStream): String {
+        val r = InputStreamReader(input)
 
-        StringBuilder sb = new StringBuilder();
-        char[] buf = new char[256];
-        int bytesRead;
-        while ((bytesRead = r.read(buf)) != -1) {
-            sb.append(buf, 0, bytesRead);
+        val sb = StringBuilder()
+        val buf = CharArray(256)
+        var bytesRead: Int
+        while (r.read(buf).also { bytesRead = it } != -1) {
+            sb.append(buf, 0, bytesRead)
         }
 
         try {
-            in.close();
-        } catch (IOException ignored) {}
+            input.close()
+        } catch (_: IOException) {
+        }
 
-        return sb.toString();
+        return sb.toString()
     }
 
-    public static void writeStringToOutputStream(OutputStream out, String str) throws IOException {
-        out.write(str.getBytes("UTF-8"));
+    @JvmStatic
+    @Throws(IOException::class)
+    fun writeStringToOutputStream(out: OutputStream, str: String) {
+        out.write(str.toByteArray(Charsets.UTF_8))
     }
 }

@@ -98,6 +98,10 @@ public class PreferenceConfiguration {
     private static final String VIBRATE_OSC_PREF_STRING = "checkbox_vibrate_osc";
     private static final String VIBRATE_FALLBACK_PREF_STRING = "checkbox_vibrate_fallback";
     private static final String VIBRATE_FALLBACK_STRENGTH_PREF_STRING = "seekbar_vibrate_fallback_strength";
+    private static final String AUDIO_VIBRATION_ENABLE_PREF_STRING = "checkbox_audio_vibration";
+    private static final String AUDIO_VIBRATION_STRENGTH_PREF_STRING = "seekbar_audio_vibration_strength";
+    private static final String AUDIO_VIBRATION_MODE_PREF_STRING = "list_audio_vibration_mode";
+    private static final String AUDIO_VIBRATION_SCENE_PREF_STRING = "list_audio_vibration_scene";
     private static final String FLIP_FACE_BUTTONS_PREF_STRING = "checkbox_flip_face_buttons";
     public static final String TOUCHSCREEN_TRACKPAD_PREF_STRING = "checkbox_touchscreen_trackpad";
     private static final String LATENCY_TOAST_PREF_STRING = "checkbox_enable_post_stream_toast";
@@ -143,6 +147,19 @@ public class PreferenceConfiguration {
     private static final String ENABLE_ESC_MENU_PREF_STRING = "checkbox_enable_esc_menu";
     private static final String ESC_MENU_KEY_PREF_STRING = "list_esc_menu_key";
     private static final String ENABLE_START_KEY_MENU_PREF_STRING = "checkbox_enable_start_key_menu";
+    
+    // 悬浮球设置
+    private static final String ENABLE_FLOAT_BALL_PREF_STRING = "checkbox_enable_float_ball";
+    private static final String FLOAT_BALL_AUTO_HIDE_DELAY_PREF_STRING = "seekbar_float_ball_auto_hide_delay";
+    
+    // 悬浮球交互监听器设置
+    private static final String FLOAT_BALL_SINGLE_CLICK_ACTION_PREF_STRING = "list_float_ball_single_click_action";
+    private static final String FLOAT_BALL_DOUBLE_CLICK_ACTION_PREF_STRING = "list_float_ball_double_click_action";
+    private static final String FLOAT_BALL_LONG_CLICK_ACTION_PREF_STRING = "list_float_ball_long_click_action";
+    private static final String FLOAT_BALL_SWIPE_UP_ACTION_PREF_STRING = "list_float_ball_swipe_up_action";
+    private static final String FLOAT_BALL_SWIPE_DOWN_ACTION_PREF_STRING = "list_float_ball_swipe_down_action";
+    private static final String FLOAT_BALL_SWIPE_LEFT_ACTION_PREF_STRING = "list_float_ball_swipe_left_action";
+    private static final String FLOAT_BALL_SWIPE_RIGHT_ACTION_PREF_STRING = "list_float_ball_swipe_right_action";
     
     // 控制流only模式设置
     private static final String CONTROL_ONLY_PREF_STRING = "checkbox_control_only";
@@ -191,6 +208,10 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_VIBRATE_OSC = true;
     private static final boolean DEFAULT_VIBRATE_FALLBACK = false;
     private static final int DEFAULT_VIBRATE_FALLBACK_STRENGTH = 100;
+    private static final boolean DEFAULT_AUDIO_VIBRATION = false;
+    private static final int DEFAULT_AUDIO_VIBRATION_STRENGTH = 80;
+    private static final String DEFAULT_AUDIO_VIBRATION_MODE = "auto";
+    private static final int DEFAULT_AUDIO_VIBRATION_SCENE = 0; // Game/Movie
     private static final boolean DEFAULT_FLIP_FACE_BUTTONS = false;
     private static final boolean DEFAULT_TOUCHSCREEN_TRACKPAD = true;
     private static final String DEFAULT_AUDIO_CONFIG = "2"; // Stereo
@@ -221,6 +242,19 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_ESC_MENU = true; // 默认启用ESC菜单
     private static final int DEFAULT_ESC_MENU_KEY = KeyEvent.KEYCODE_ESCAPE;
     private static final boolean DEFAULT_ENABLE_START_KEY_MENU = true; // 默认启用长按start键菜单
+    
+    // 悬浮球设置默认值
+    private static final boolean DEFAULT_ENABLE_FLOAT_BALL = true; // 默认启用悬浮球
+    private static final int DEFAULT_FLOAT_BALL_AUTO_HIDE_DELAY = 2000; // 默认2000ms
+    
+    // 悬浮球交互监听器默认值
+    private static final String DEFAULT_FLOAT_BALL_SINGLE_CLICK_ACTION = "open_keyboard"; // 单击打开键盘
+    private static final String DEFAULT_FLOAT_BALL_DOUBLE_CLICK_ACTION = "open_menu"; // 双击打开菜单
+    private static final String DEFAULT_FLOAT_BALL_LONG_CLICK_ACTION = "toggle_visibility"; // 长按切换可见性
+    private static final String DEFAULT_FLOAT_BALL_SWIPE_UP_ACTION = "none"; // 向上滑动无操作
+    private static final String DEFAULT_FLOAT_BALL_SWIPE_DOWN_ACTION = "none"; // 向下滑动无操作
+    private static final String DEFAULT_FLOAT_BALL_SWIPE_LEFT_ACTION = "none"; // 向左滑动无操作
+    private static final String DEFAULT_FLOAT_BALL_SWIPE_RIGHT_ACTION = "none"; // 向右滑动无操作
     
     // 控制流only模式默认值
     private static final boolean DEFAULT_CONTROL_ONLY = false;
@@ -330,6 +364,7 @@ public class PreferenceConfiguration {
     public boolean enableLatencyToast;
     public boolean enableStun;
     public int screenCombinationMode;
+    public int vddScreenCombinationMode;
     public boolean lockScreenAfterDisconnect;
     public boolean swapQuitAndDisconnect;
     public boolean bindAllUsb;
@@ -340,6 +375,10 @@ public class PreferenceConfiguration {
     public boolean vibrateOsc;
     public boolean vibrateFallbackToDevice;
     public int vibrateFallbackToDeviceStrength;
+    public boolean enableAudioVibration;
+    public int audioVibrationStrength;
+    public String audioVibrationMode;
+    public int audioVibrationScene;
     public boolean touchscreenTrackpad;
     public MoonBridge.AudioConfiguration audioConfiguration;
     public int framePacing;
@@ -394,6 +433,19 @@ public class PreferenceConfiguration {
     public int screenOffsetY;
     
     public boolean useExternalDisplay;
+    
+    // 悬浮球设置
+    public boolean enableFloatBall;
+    public int floatBallAutoHideDelay;
+    
+    // 悬浮球交互监听器设置
+    public String floatBallSingleClickAction;
+    public String floatBallDoubleClickAction;
+    public String floatBallLongClickAction;
+    public String floatBallSwipeUpAction;
+    public String floatBallSwipeDownAction;
+    public String floatBallSwipeLeftAction;
+    public String floatBallSwipeRightAction;
 
     public static boolean isNativeResolution(int width, int height) {
         // 使用集合检查是否为原生分辨率
@@ -769,7 +821,10 @@ public class PreferenceConfiguration {
         // config.pointerFixedXVelocity = prefs.getInt(POINTER_FIXED_X_VELOCITY_PREF_STRING,0);
 
         String audioConfig = prefs.getString(AUDIO_CONFIG_PREF_STRING, DEFAULT_AUDIO_CONFIG);
-        if (audioConfig.equals("71")) {
+        if (audioConfig.equals("714")) {
+            config.audioConfiguration = MoonBridge.AUDIO_CONFIGURATION_714_SURROUND;
+        }
+        else if (audioConfig.equals("71")) {
             config.audioConfiguration = MoonBridge.AUDIO_CONFIGURATION_71_SURROUND;
         }
         else if (audioConfig.equals("51")) {
@@ -858,6 +913,10 @@ public class PreferenceConfiguration {
         config.vibrateOsc = prefs.getBoolean(VIBRATE_OSC_PREF_STRING, DEFAULT_VIBRATE_OSC);
         config.vibrateFallbackToDevice = prefs.getBoolean(VIBRATE_FALLBACK_PREF_STRING, DEFAULT_VIBRATE_FALLBACK);
         config.vibrateFallbackToDeviceStrength = prefs.getInt(VIBRATE_FALLBACK_STRENGTH_PREF_STRING, DEFAULT_VIBRATE_FALLBACK_STRENGTH);
+        config.enableAudioVibration = prefs.getBoolean(AUDIO_VIBRATION_ENABLE_PREF_STRING, DEFAULT_AUDIO_VIBRATION);
+        config.audioVibrationStrength = prefs.getInt(AUDIO_VIBRATION_STRENGTH_PREF_STRING, DEFAULT_AUDIO_VIBRATION_STRENGTH);
+        config.audioVibrationMode = prefs.getString(AUDIO_VIBRATION_MODE_PREF_STRING, DEFAULT_AUDIO_VIBRATION_MODE);
+        config.audioVibrationScene = Integer.parseInt(prefs.getString(AUDIO_VIBRATION_SCENE_PREF_STRING, String.valueOf(DEFAULT_AUDIO_VIBRATION_SCENE)));
         config.flipFaceButtons = prefs.getBoolean(FLIP_FACE_BUTTONS_PREF_STRING, DEFAULT_FLIP_FACE_BUTTONS);
         config.touchscreenTrackpad = prefs.getBoolean(TOUCHSCREEN_TRACKPAD_PREF_STRING, DEFAULT_TOUCHSCREEN_TRACKPAD);
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
@@ -869,6 +928,10 @@ public class PreferenceConfiguration {
         } catch (NumberFormatException e) {
             config.screenCombinationMode = -1;
         }
+
+        // VDD screen combination mode defaults to -1 (use host config)
+        // This is set dynamically from AppView based on display selection
+        config.vddScreenCombinationMode = -1;
 
         config.lockScreenAfterDisconnect = prefs.getBoolean(LOCK_SCREEN_AFTER_DISCONNECT_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.swapQuitAndDisconnect = prefs.getBoolean(SWAP_QUIT_AND_DISCONNECT_PERF_STRING, DEFAULT_LATENCY_TOAST);
@@ -984,6 +1047,19 @@ public class PreferenceConfiguration {
         config.screenOffsetY = prefs.getInt(SCREEN_OFFSET_Y_PREF_STRING, DEFAULT_SCREEN_OFFSET_Y);
         
         config.useExternalDisplay = prefs.getBoolean("use_external_display", false);
+
+        // 读取悬浮球设置
+        config.enableFloatBall = prefs.getBoolean(ENABLE_FLOAT_BALL_PREF_STRING, DEFAULT_ENABLE_FLOAT_BALL);
+        config.floatBallAutoHideDelay = prefs.getInt(FLOAT_BALL_AUTO_HIDE_DELAY_PREF_STRING, DEFAULT_FLOAT_BALL_AUTO_HIDE_DELAY);
+        
+        // 读取悬浮球交互监听器设置
+        config.floatBallSingleClickAction = prefs.getString(FLOAT_BALL_SINGLE_CLICK_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_SINGLE_CLICK_ACTION);
+        config.floatBallDoubleClickAction = prefs.getString(FLOAT_BALL_DOUBLE_CLICK_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_DOUBLE_CLICK_ACTION);
+        config.floatBallLongClickAction = prefs.getString(FLOAT_BALL_LONG_CLICK_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_LONG_CLICK_ACTION);
+        config.floatBallSwipeUpAction = prefs.getString(FLOAT_BALL_SWIPE_UP_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_SWIPE_UP_ACTION);
+        config.floatBallSwipeDownAction = prefs.getString(FLOAT_BALL_SWIPE_DOWN_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_SWIPE_DOWN_ACTION);
+        config.floatBallSwipeLeftAction = prefs.getString(FLOAT_BALL_SWIPE_LEFT_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_SWIPE_LEFT_ACTION);
+        config.floatBallSwipeRightAction = prefs.getString(FLOAT_BALL_SWIPE_RIGHT_ACTION_PREF_STRING, DEFAULT_FLOAT_BALL_SWIPE_RIGHT_ACTION);
 
         // Runtime-only defaults; controlled via in-stream GameMenu
         config.gyroToRightStick = false;

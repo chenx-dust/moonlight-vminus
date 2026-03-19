@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 // 仅在存在 google-services.json 且满足条件时应用 Google Services 插件
 def hasGoogleServicesJson = file('google-services.json').exists()
@@ -9,7 +10,7 @@ if (hasGoogleServicesJson && (project.hasProperty('enableAnalytics') || gradle.s
 }
 
 android {
-    ndkVersion "29.0.14206865"
+    ndkVersion "28.2.13676358"
 
     compileSdkVersion 36
 
@@ -19,11 +20,15 @@ android {
         minSdk 22
         targetSdk 35
 
-        versionName "12.6.16"
-        versionCode = 364
+        versionName "12.7.1"
+        versionCode = 367
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
 
     flavorDimensions.add("root")
@@ -66,6 +71,10 @@ android {
         encoding "UTF-8"
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
     }
 
     lint {
@@ -165,8 +174,8 @@ android {
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.82'
-    implementation 'org.bouncycastle:bcpkix-jdk18on:1.82'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.83'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.83'
     implementation 'org.jcodec:jcodec:0.2.5'
     implementation 'com.squareup.okhttp3:okhttp:5.3.2'
     implementation 'org.jmdns:jmdns:3.6.3'
@@ -179,4 +188,7 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
     implementation 'androidx.tvprovider:tvprovider:1.1.0'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    // Kotlin
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
